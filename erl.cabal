@@ -8,8 +8,10 @@ build-type:     Simple
 library
   exposed-modules: Erl.EntityType,
                    Erl.Entity,
+                   Erl.Monad,
                    Erl.Name
   build-depends:   base >= 4 && < 5,
+                   mtl >= 2 && < 3,
                    text >= 0.10 && < 1
   ghc-options:     -fwarn-incomplete-patterns
                    -fwarn-unused-imports
