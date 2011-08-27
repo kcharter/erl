@@ -40,10 +40,9 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   lookupEntityTypeName :: Name -> m (Maybe ET.Id)
   entityIds :: ET.Id -> m [E.Id]
   entity :: E.Id -> m (E.Instance d)
-  createEntity :: ET.Id -> Name -> d -> m E.Id
+  createEntity :: ET.Id -> d -> m E.Id
   deleteEntity :: E.Id -> m ()
   updateEntity :: E.Id -> (d -> d) -> m ()
-  renameEntity :: E.Id -> Name -> m ()
 
 hasEntityTypeNamed :: (MonadErl d m) => Name -> m Bool
 hasEntityTypeNamed name = maybe False (const True) `liftM` lookupEntityTypeName name
@@ -97,7 +96,6 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   createEntity = ni
   deleteEntity = ni
   updateEntity = ni
-  renameEntity = ni
 
 data ErlTState = ErlTState {
   nextEntityTypeId :: ET.Id,
