@@ -1,6 +1,6 @@
 name:           erl
 version:        0.0.1
-cabal-version:  >= 1.2 && < 2
+cabal-version:  >= 1.9.2 && < 2
 author:         Kevin Charter
 synopsis:       A tiny entity-relationship DSL.
 build-type:     Simple
@@ -18,3 +18,12 @@ library
                    -fwarn-unused-imports
                    -funbox-strict-fields
                    -O2
+
+test-suite tests
+  type:                 exitcode-stdio-1.0
+  main-is:              tests.hs
+  build-depends:        base >= 4 && < 5,
+                        containers >= 0.4.0.0 && < 1,
+                        mtl >= 2 && < 3,
+                        text >= 0.10 && < 1,
+                        QuickCheck >= 2 && < 3
