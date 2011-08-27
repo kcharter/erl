@@ -39,7 +39,7 @@ prop_createEntityTypeGeneral whenNew (s, name)  =
             checkDuplicateError _ =
               (createEntityType name >> return False) `catchError` (const $ return True)
 
-checkErl :: ErlTState () -> ErlMonad () Bool -> Bool
+checkErl :: ErlTState d -> ErlMonad d Bool -> Bool
 checkErl s erl =
   either (const False) id $ evalErl erl s
 
