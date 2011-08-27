@@ -39,7 +39,7 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   lookupEntityType :: ET.Id -> m (Maybe ET.EntityType)
   lookupEntityTypeName :: Name -> m (Maybe ET.Id)
   entityIds :: ET.Id -> m [E.Id]
-  entity :: E.Id -> m (E.Instance d)
+  lookupEntity :: E.Id -> m (Maybe (E.Instance d))
   createEntity :: ET.Id -> d -> m E.Id
   deleteEntity :: E.Id -> m ()
   updateEntity :: E.Id -> (d -> d) -> m ()
@@ -50,6 +50,10 @@ hasEntityTypeNamed name = maybe False (const True) `liftM` lookupEntityTypeName 
 entityType :: (MonadErl d m) => ET.Id -> m ET.EntityType
 entityType id = maybe noSuchType return =<< lookupEntityType id
   where noSuchType = throwMsg $ "There is no entity type with id " ++ show id ++ "."
+
+entity :: (MonadErl d m) => E.Id -> m (E.Instance d)
+entity id = maybe noSuchInstance return =<< lookupEntity id
+  where noSuchInstance = throwMsg $ "No instance for entity ID " ++ show id ++ "."
 
 newtype ErlT d m a =
   ErlT { runErlT :: ErrorT ErlError (StateT (ErlTState d) m) a }
@@ -92,7 +96,7 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   lookupEntityTypeName name = (DM.lookup name . typeIdsByName) `liftM` get
   lookupEntityType id = (DM.lookup id . typesById) `liftM` get
   entityIds = ni
-  entity = ni
+  lookupEntity = ni
   createEntity = ni
   deleteEntity = ni
   updateEntity = ni
