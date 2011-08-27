@@ -4,6 +4,8 @@ cabal-version:  >= 1.9.2 && < 2
 author:         Kevin Charter
 synopsis:       A tiny entity-relationship DSL.
 build-type:     Simple
+license:        BSD3
+license-file:   LICENSE
 
 library
   exposed-modules: Erl.EntityType,
