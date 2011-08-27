@@ -52,29 +52,29 @@ entityType id = maybe noSuchType return =<< lookupEntityType id
   where noSuchType = throwMsg $ "There is no entity type with id " ++ show id ++ "."
 
 newtype ErlT d m a =
-  ErlT { runErlT :: ErrorT ErlError (StateT ErlTState m) a }
-  deriving (Monad, MonadError ErlError, MonadState ErlTState, MonadIO)
+  ErlT { runErlT :: ErrorT ErlError (StateT (ErlTState d) m) a }
+  deriving (Monad, MonadError ErlError, MonadState (ErlTState d), MonadIO)
 
-doErlT :: (Monad m) => ErlT d m a -> ErlTState -> m (Either ErlError a, ErlTState)
+doErlT :: (Monad m) => ErlT d m a -> ErlTState d -> m (Either ErlError a, ErlTState d)
 doErlT erl state = runStateT (runErrorT $ runErlT erl) state
 
-evalErlT :: (Monad m) => ErlT d m a -> ErlTState -> m (Either ErlError a)
+evalErlT :: (Monad m) => ErlT d m a -> ErlTState d -> m (Either ErlError a)
 evalErlT erl state = evalStateT (runErrorT $ runErlT erl) state
 
-execErlT :: (Monad m) => ErlT d m a -> ErlTState -> m ErlTState
+execErlT :: (Monad m) => ErlT d m a -> ErlTState d -> m (ErlTState d)
 execErlT erl state = execStateT (runErrorT $ runErlT erl) state
 
 newtype ErlMonad d a =
   ErlMonad { runErl ::  ErlT d Identity a }
   deriving (Monad, MonadError ErlError, MonadErl d)
 
-doErl :: ErlMonad d a -> ErlTState -> (Either ErlError a, ErlTState)
+doErl :: ErlMonad d a -> ErlTState d -> (Either ErlError a, ErlTState d)
 doErl erl state = runIdentity $ doErlT (runErl erl) state
 
-evalErl :: ErlMonad d a -> ErlTState -> Either ErlError a
+evalErl :: ErlMonad d a -> ErlTState d -> Either ErlError a
 evalErl erl state = runIdentity $ evalErlT (runErl erl) state
 
-execErl :: ErlMonad d a -> ErlTState -> ErlTState
+execErl :: ErlMonad d a -> ErlTState d -> ErlTState d
 execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where
@@ -97,13 +97,13 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   deleteEntity = ni
   updateEntity = ni
 
-data ErlTState = ErlTState {
+data ErlTState d = ErlTState {
   nextEntityTypeId :: ET.Id,
   typesById :: DM.Map ET.Id ET.EntityType,
   typeIdsByName :: DM.Map Name ET.Id
   }
 
-emptyState :: ErlTState
+emptyState :: ErlTState d
 emptyState = ErlTState {
   nextEntityTypeId = ET.Id 0,
   typesById = DM.empty,
@@ -115,5 +115,5 @@ throwMsg = throwError . strMsg
 
 ni = error "Not implemented"
 
-instance Show ErlTState where
+instance Show (ErlTState d) where
   show s = "ErlTState { entityTypes = " ++ show (map ET.name $ DM.elems $ typesById s) ++ " }"
