@@ -49,7 +49,7 @@ hasEntityTypeNamed name = maybe False (const True) `liftM` lookupEntityTypeName 
 
 entityType :: (MonadErl d m) => ET.Id -> m ET.EntityType
 entityType id = maybe noSuchType return =<< lookupEntityType id
-  where noSuchType = throwMsg $ "There is no entity type with id " ++ show id ++ "."
+  where noSuchType = throwMsg $ "There is no entity type with ID " ++ show id ++ "."
 
 entity :: (MonadErl d m) => E.Id -> m (E.Instance d)
 entity id = maybe noSuchInstance return =<< lookupEntity id
