@@ -40,7 +40,7 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   lookupEntityTypeName :: Name -> m (Maybe ET.Id)
   entityIds :: ET.Id -> m [E.EntityId]
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
-  createEntity :: ET.Id -> d -> m E.EntityId
+  createEntity :: d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
 
