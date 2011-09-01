@@ -38,7 +38,7 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   entityTypeIds :: m [ET.Id]
   lookupEntityType :: ET.Id -> m (Maybe ET.EntityType)
   lookupEntityTypeName :: Name -> m (Maybe ET.Id)
-  entityIds :: ET.Id -> m [E.EntityId]
+  selectEntities :: (d -> Bool) -> m [E.EntityId]
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
   createEntity :: d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
@@ -96,16 +96,27 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   entityTypeIds = (DM.keys . entityTypeRecsById) `liftM` get
   lookupEntityTypeName name = (DM.lookup name . typeIdsByName) `liftM` get
   lookupEntityType id = (fmap theType . DM.lookup id . entityTypeRecsById) `liftM` get
-  entityIds = ni
-  lookupEntity = ni
-  createEntity = ni
-  deleteEntity = ni
+  selectEntities pred = (map E.id . DM.elems . DM.filter pred' . allEntities) `liftM` get
+    where pred' = pred . E.attributes
+  lookupEntity id = (DM.lookup id . allEntities) `liftM` get
+  createEntity attrs = do
+    s <- get
+    let id = nextEntityId s
+        e  = E.Entity { E.id = id, E.attributes = attrs }
+        s' = s { nextEntityId = succ id,
+                 allEntities = DM.insert id e (allEntities s) }
+    put s'
+    return id
+  deleteEntity id = modify $ \s ->
+    s { allEntities = DM.delete id (allEntities s) }
   updateEntity = ni
 
 data ErlTState d = ErlTState {
   nextEntityTypeId :: ET.Id,
   entityTypeRecsById :: DM.Map ET.Id (EntityTypeRec d),
-  typeIdsByName :: DM.Map Name ET.Id
+  typeIdsByName :: DM.Map Name ET.Id,
+  nextEntityId :: E.EntityId,
+  allEntities :: DM.Map E.EntityId (E.Entity d)
   }
 
 data EntityTypeRec d = EntityTypeRec {
@@ -117,7 +128,9 @@ emptyState :: ErlTState d
 emptyState = ErlTState {
   nextEntityTypeId = ET.Id 0,
   entityTypeRecsById = DM.empty,
-  typeIdsByName = DM.empty
+  typeIdsByName = DM.empty,
+  nextEntityId = E.EntityId 0,
+  allEntities = DM.empty
   }
 
 newEntityTypeRec :: ET.EntityType -> EntityTypeRec d
