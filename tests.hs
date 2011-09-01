@@ -9,7 +9,6 @@ import Test.QuickCheck.Test (isSuccess)
 
 import qualified Erl.Entity as E
 import Erl.Monad
-import Erl.Name
 
 main :: IO ()
 main = do
