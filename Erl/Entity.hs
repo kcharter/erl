@@ -8,4 +8,4 @@ newtype IdNum = IdNum Int deriving (Eq, Ord, Enum, Show)
 
 data EntityId = EntityId { typeId :: !Type.Id, idNum :: !IdNum } deriving (Eq, Ord, Show)
 
-data Instance d = Instance { id :: EntityId, attributes :: d } deriving (Eq, Ord, Show)
+data Entity d = Entity { id :: EntityId, attributes :: d } deriving (Eq, Ord, Show)

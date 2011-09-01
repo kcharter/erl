@@ -39,7 +39,7 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   lookupEntityType :: ET.Id -> m (Maybe ET.EntityType)
   lookupEntityTypeName :: Name -> m (Maybe ET.Id)
   entityIds :: ET.Id -> m [E.EntityId]
-  lookupEntity :: E.EntityId -> m (Maybe (E.Instance d))
+  lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
   createEntity :: ET.Id -> d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
@@ -51,7 +51,7 @@ entityType :: (MonadErl d m) => ET.Id -> m ET.EntityType
 entityType id = maybe noSuchType return =<< lookupEntityType id
   where noSuchType = throwMsg $ "There is no entity type with ID " ++ show id ++ "."
 
-entity :: (MonadErl d m) => E.EntityId -> m (E.Instance d)
+entity :: (MonadErl d m) => E.EntityId -> m (E.Entity d)
 entity id = maybe noSuchInstance return =<< lookupEntity id
   where noSuchInstance = throwMsg $ "No instance for entity ID " ++ show id ++ "."
 
@@ -111,7 +111,7 @@ data ErlTState d = ErlTState {
 data EntityTypeRec d = EntityTypeRec {
   theType :: ET.EntityType,
   nextInstanceIdNum :: E.IdNum,
-  instancesById :: DM.Map E.EntityId (E.Instance d)
+  instancesById :: DM.Map E.EntityId (E.Entity d)
   }
 
 emptyState :: ErlTState d
