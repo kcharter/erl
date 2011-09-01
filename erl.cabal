@@ -8,8 +8,7 @@ license:        BSD3
 license-file:   LICENSE
 
 library
-  exposed-modules: Erl.EntityType,
-                   Erl.Entity,
+  exposed-modules: Erl.Entity,
                    Erl.Monad,
                    Erl.Name
   build-depends:   base >= 4 && < 5,
