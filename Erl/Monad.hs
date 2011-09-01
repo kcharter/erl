@@ -110,7 +110,6 @@ data ErlTState d = ErlTState {
 
 data EntityTypeRec d = EntityTypeRec {
   theType :: ET.EntityType,
-  nextInstanceIdNum :: E.IdNum,
   instancesById :: DM.Map E.EntityId (E.Entity d)
   }
 
@@ -124,7 +123,6 @@ emptyState = ErlTState {
 newEntityTypeRec :: ET.EntityType -> EntityTypeRec d
 newEntityTypeRec t = EntityTypeRec {
   theType = t,
-  nextInstanceIdNum = E.IdNum 0,
   instancesById = DM.empty
   }
 
