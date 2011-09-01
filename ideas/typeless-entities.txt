@@ -1,0 +1,161 @@
+Typeless Entities
+=================
+
+I'm partway through implementing the methods on MonadErl for the ErlT
+transformer, and I've started to realize that the MonadErl interface
+doesn't actually support scoped entities. This has gotten me thinking
+a little about whether I need to represent scoping in the entity IDs,
+or indeed whether we need entity types at all. I'll try to explain the
+thinking below.
+
+Attributes and uniqueness
+-------------------------
+
+We don't have names on entity IDs, but surely we're going to want to
+be able to enforce some kind of name uniqueness constraint, so I was
+thinking a little about how to support uniqueness constraints. We'd
+want a MonadErl instance to be able to enforce those uniqueness
+constraints on new entity instances.
+
+I was thinking that in addition to the type parameter 'd' for the data
+on an entity instance, we also have a type parameter 'a' for the types
+of attributes that can be extracted from that data. 'MonadErl' would
+become
+
+  class (MonadError ErlError m) => MonadErl d a m | m -> d, m -> a
+    ...
+
+Attributes are extracted by functions with type
+
+  d -> a
+
+or perhaps
+
+  d -> m a
+  d -> Either ErlError a
+  d -> Maybe a
+
+since it's possible that an attribute might not be present, and we'd
+like to be able to know this and produce meaningful error
+messages. For simplicity, let's assume
+
+  d -> Maybe a
+
+Suppose we have a Person entity type, and that each Person is supposed
+to carry data with a unique name. We'd like to be able to
+
+  - look up a Person instance by a unique name
+
+  - ensure that we refuse to add a new Person instance if the name is
+    already taken
+
+This suggests that we'd like to be able to configure a uniqueness
+constraint, and save it in the ErlTState. MonadErl would need a method
+
+  uniqueIndex :: (Ord a) => ET.Id -> (d -> Maybe a) -> m IndexId
+
+which installs a uniqueness constraint for an entity type, given the
+type and a function for extracting the unique data. The 'Ord a'
+constraint permits storing 'a' values in a 'Data.Set.Set' so we can
+maintain an index by the values, and efficiently determine whether a
+new entity instance violates the constraint.
+
+The 'IndexId' uniquely identifies the uniqueness constraint, and
+allows us to implement another method
+
+  uniqueEntity :: (Ord a) => IndexId -> a -> m (Maybe E.Id)
+
+that looks up an entity using the index.
+
+Now, this interface completely ignores the existence of scoped
+entities. For scoped entities, we would need the 'uniqueIndex'
+function to have the form
+
+ uniqueIndex :: (Ord a) => E.Id -> ET.Id -> (d -> Maybe a) -> m IndexId
+
+where the 'E.Id' argument is the ID of the scoping entity. The
+corresponding lookup function has the form
+
+ uniqueEntity :: (Ord a) => IndexId -> E.Id -> a -> m (Maybe E.Id)
+
+This isn't very satisfying. It requires creating a separate index for
+each scoping entity!
+
+Now, if an entity type knew what the scoping entity type was, then the
+'uniqueIndex' method could just have the type
+
+  uniqueIndex :: (Ord a) => ET.Id -> (d -> Maybe a) -> m IndexId
+
+but we would still need the lookup function to be a bit more general,
+perhaps of the form
+
+  uniqueEntity :: (Ord a) => IndexId -> Maybe E.Id -> a -> m (Maybe E.Id)
+
+Notice that we can't enforce through the types that the user of this
+method gives a scoping entity when the entity type is supposed to be
+scoped.
+
+General indexing
+----------------
+
+It will probably be useful to have a more general form of indexing,
+where the data need not be unique.
+
+  index :: (Ord a) => ET.Id -> (d -> Maybe a) -> m IndexId
+
+and a lookup function
+
+  entitiesWith :: (Ord a) => IndexId -> ET.Id -> a -> m [E.Id]
+
+The 'uniqueEntity' and 'uniqueIndex' methods could be implemented
+using 'index' and 'entitiesWith'.
+
+
+What's the simplest that we can make this?
+------------------------------------------
+
+In a sense, entity types are a way to label sets of entities. But
+indexes give us a way to associate data extracted from an entity with
+sets of entities. The population of entities of a particular type
+could simply be those entities with a common value for a certain piece
+of data.
+
+So, what if we removed direct support for scoping, and even removed
+direct support for entity types in ERL? Entity IDs could just be
+integers
+
+  newtype EntityId = EntityId Int
+
+  data Entity d = { entityId :: EntityId, attrs :: d }
+
+The user of the library can implement entity types as an attribute, if
+it were necessary to distinguish entity types. MonadErl would need
+
+  class (MonadError ErlError m, Ord a) => MonadErl d a m | m -> d, m -> a where
+    createEntity :: d -> m EntityId
+    destroyEntity :: d -> m ()
+    index :: (d -> Maybe a) -> m IndexId
+    entities :: IndexId -> a -> m [EntityId]
+    uniqueIndex :: (d -> Maybe a) -> m IndexId
+    uniqueEntity :: IndexId -> a -> m (Maybe EntityId)
+    selectEntities :: (d -> Bool) -> m [EntityId]
+
+    ... stuff for relationships
+
+When we get to stuff for relationships, I think that we will need
+types for entity sets with operations like union, intersection, and
+difference, instead of using lists. We'll also need a type of
+relations that also have union, intersection, and difference, but also
+operations associated with binary relations, like
+
+ - get the left entities
+ - get the right entities
+ - find the right image of a (left) set
+ - find the left image of a (right) set
+ - join with another binary relationship to form a new binary relationship
+ - filter by properties of the tuples
+
+We might also want to put similar indexes and constraints on
+relationships. The repetition is unfortunate: this is where you see
+the value in generalizing entities and relationships to vectors of
+entity IDs.
