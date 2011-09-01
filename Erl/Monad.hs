@@ -89,12 +89,13 @@ instance (Monad m) => MonadErl d (ErlT d m) where
             makeNew s = put s' >> return etId
               where etId = nextEntityTypeId s
                     s' = s { nextEntityTypeId = succ etId,
-                             typesById = DM.insert etId et (typesById s),
+                             entityTypeRecsById = DM.insert etId etr (entityTypeRecsById s),
                              typeIdsByName = DM.insert name etId (typeIdsByName s) }
+                    etr = newEntityTypeRec et
                     et = ET.EntityType { ET.id = etId, ET.name = name }
-  entityTypeIds = (DM.keys . typesById) `liftM` get
+  entityTypeIds = (DM.keys . entityTypeRecsById) `liftM` get
   lookupEntityTypeName name = (DM.lookup name . typeIdsByName) `liftM` get
-  lookupEntityType id = (DM.lookup id . typesById) `liftM` get
+  lookupEntityType id = (fmap theType . DM.lookup id . entityTypeRecsById) `liftM` get
   entityIds = ni
   lookupEntity = ni
   createEntity = ni
@@ -103,15 +104,28 @@ instance (Monad m) => MonadErl d (ErlT d m) where
 
 data ErlTState d = ErlTState {
   nextEntityTypeId :: ET.Id,
-  typesById :: DM.Map ET.Id ET.EntityType,
+  entityTypeRecsById :: DM.Map ET.Id (EntityTypeRec d),
   typeIdsByName :: DM.Map Name ET.Id
+  }
+
+data EntityTypeRec d = EntityTypeRec {
+  theType :: ET.EntityType,
+  nextInstanceIdNum :: E.IdNum,
+  instancesById :: DM.Map E.Id (E.Instance d)
   }
 
 emptyState :: ErlTState d
 emptyState = ErlTState {
   nextEntityTypeId = ET.Id 0,
-  typesById = DM.empty,
+  entityTypeRecsById = DM.empty,
   typeIdsByName = DM.empty
+  }
+
+newEntityTypeRec :: ET.EntityType -> EntityTypeRec d
+newEntityTypeRec t = EntityTypeRec {
+  theType = t,
+  nextInstanceIdNum = E.IdNum 0,
+  instancesById = DM.empty
   }
 
 throwMsg :: (Error e, MonadError e m) => String -> m a
@@ -120,4 +134,5 @@ throwMsg = throwError . strMsg
 ni = error "Not implemented"
 
 instance Show (ErlTState d) where
-  show s = "ErlTState { entityTypes = " ++ show (map ET.name $ DM.elems $ typesById s) ++ " }"
+  show s = "ErlTState { entityTypes = " ++
+           show (map (ET.name . theType) $ DM.elems $ entityTypeRecsById s) ++ " }"
