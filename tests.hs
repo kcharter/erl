@@ -11,13 +11,16 @@ import qualified Erl.Entity as E
 import qualified Erl.EntitySet as ES
 import Erl.Monad
 
+import qualified Erl.Test.EntityTests as ET
+
 main :: IO ()
 main = do
+  entityOK <- ET.runTests
   rs <- sequence [quickCheckResult prop_createEntity1,
                   quickCheckResult prop_createEntity2,
                   quickCheckResult prop_deleteEntity1,
                   quickCheckResult prop_deleteEntity2]
-  unless (all isSuccess rs) exitFailure
+  unless (entityOK && all isSuccess rs) exitFailure
 
 prop_createEntity1 :: (ErlTState Int, Int) -> Bool
 prop_createEntity1 (s, val) =
@@ -51,9 +54,6 @@ checkErl s erl =
 instance (Arbitrary d) => Arbitrary (ErlTState d) where
   arbitrary = foldr addEntity emptyState `liftM` arbitrary
     where addEntity = execErl . createEntity
-
-instance Arbitrary E.EntityId where
-  arbitrary = E.EntityId `liftM` arbitrary
 
 withEntity :: (Arbitrary d) => Gen (ErlTState d, E.EntityId)
 withEntity = do
