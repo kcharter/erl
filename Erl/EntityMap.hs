@@ -23,7 +23,7 @@ import Prelude hiding (lookup)
 
 import Erl.Entity (EntityId, toInt, fromInt)
 
-newtype EntityMap a = EntityMap (DIM.IntMap a)
+newtype EntityMap a = EntityMap (DIM.IntMap a) deriving (Eq, Ord, Show)
 
 empty :: EntityMap a
 empty = fromIntMap DIM.empty
