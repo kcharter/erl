@@ -8,6 +8,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Test (isSuccess)
 
 import qualified Erl.Entity as E
+import qualified Erl.EntitySet as ES
 import Erl.Monad
 
 main :: IO ()
@@ -29,7 +30,7 @@ prop_createEntity2 :: (ErlTState Int, Int) -> Bool
 prop_createEntity2 (s, val) =
   checkErl s $ do
     id <- createEntity val
-    elem id `liftM` selectEntities (const True)
+    ES.member id `liftM` selectEntities (const True)
 
 prop_deleteEntity1 :: (ErlTState Int, E.EntityId) -> Bool
 prop_deleteEntity1 (s, id) = do
@@ -41,7 +42,7 @@ prop_deleteEntity2 :: (ErlTState Int, E.EntityId) -> Bool
 prop_deleteEntity2 (s, id) = do
   checkErl s $ do
     deleteEntity id
-    (not . elem id) `liftM` selectEntities (const True)
+    (not . ES.member id) `liftM` selectEntities (const True)
 
 checkErl :: ErlTState d -> ErlMonad d Bool -> Bool
 checkErl s erl =
@@ -57,6 +58,6 @@ instance Arbitrary E.EntityId where
 withEntity :: (Arbitrary d) => Gen (ErlTState d, E.EntityId)
 withEntity = do
   s <- arbitrary
-  let ids = either (const []) id $ evalErl (selectEntities (const True)) s
-  id <- if null ids then arbitrary else elements ids
+  let ids = either (const ES.empty) id $ evalErl (selectEntities (const True)) s
+  id <- if ES.isEmpty ids then arbitrary else elements (ES.toList ids)
   return (s, id)

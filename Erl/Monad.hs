@@ -23,6 +23,7 @@ import Control.Monad.Identity
 import qualified Data.Map as DM
 
 import qualified Erl.Entity as E
+import qualified Erl.EntitySet as ES
 
 data ErlError = ErlError String deriving (Eq, Ord, Show)
 
@@ -30,7 +31,7 @@ instance Error ErlError where
   strMsg = ErlError
 
 class (MonadError ErlError m) => MonadErl d m | m -> d where
-  selectEntities :: (d -> Bool) -> m [E.EntityId]
+  selectEntities :: (d -> Bool) -> m ES.EntitySet
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
   createEntity :: d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
@@ -67,7 +68,7 @@ execErl :: ErlMonad d a -> ErlTState d -> ErlTState d
 execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where
-  selectEntities pred = (map E.id . DM.elems . DM.filter pred' . allEntities) `liftM` get
+  selectEntities pred = (ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities) `liftM` get
     where pred' = pred . E.attributes
   lookupEntity id = (DM.lookup id . allEntities) `liftM` get
   createEntity attrs = do
