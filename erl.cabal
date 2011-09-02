@@ -9,6 +9,7 @@ license-file:   LICENSE
 
 library
   exposed-modules: Erl.Entity,
+                   Erl.EntityMap,
                    Erl.EntitySet,
                    Erl.Monad
   build-depends:   base >= 4 && < 5,
