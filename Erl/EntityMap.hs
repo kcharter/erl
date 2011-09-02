@@ -4,6 +4,8 @@ module Erl.EntityMap (EntityMap,
                       lookup,
                       member,
                       contains,
+                      insert,
+                      delete,
                       ids,
                       values,
                       toList,
@@ -11,7 +13,8 @@ module Erl.EntityMap (EntityMap,
                       union,
                       difference,
                       intersection,
-                      fold
+                      fold,
+                      adjust
                      ) where
 
 import Control.Arrow (first)
@@ -36,6 +39,12 @@ member id m = DIM.member (toInt id) (toIntMap m)
 
 contains :: EntityMap a -> EntityId -> Bool
 contains = flip member
+
+insert :: EntityId -> a -> EntityMap a -> EntityMap a
+insert i v = fromIntMap . DIM.insert (toInt i) v . toIntMap
+
+delete :: EntityId -> EntityMap a -> EntityMap a
+delete i = fromIntMap . DIM.delete (toInt i) . toIntMap
 
 ids :: EntityMap a -> [EntityId]
 ids = map fromInt . DIM.keys . toIntMap
@@ -66,6 +75,9 @@ intersection = lift2 DIM.intersection
 
 fold :: (a -> b -> b) -> b -> EntityMap a -> b
 fold f i = DIM.fold f i . toIntMap
+
+adjust :: (a -> a) -> EntityId -> EntityMap a -> EntityMap a
+adjust f i = fromIntMap . DIM.adjust f (toInt i) . toIntMap
 
 lift2 :: (DIM.IntMap a -> DIM.IntMap a -> DIM.IntMap a) -> EntityMap a -> EntityMap a -> EntityMap a
 lift2 f em1 em2 = fromIntMap $ f (toIntMap em1) (toIntMap em2)
