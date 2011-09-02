@@ -5,7 +5,10 @@ module Erl.EntitySet (EntitySet,
                       singleton,
                       add,
                       remove,
+                      member,
                       contains,
+                      isEmpty,
+                      size,
                       union,
                       difference,
                       intersection,
@@ -30,8 +33,17 @@ add id es = fromIntSet $ DIS.insert (idToInt id) (toIntSet es)
 remove :: EntityId -> EntitySet -> EntitySet
 remove id es = fromIntSet $ DIS.delete (idToInt id) (toIntSet es)
 
+member :: EntityId -> EntitySet -> Bool
+member id es = DIS.member (idToInt id) (toIntSet es)
+
 contains :: EntitySet -> EntityId -> Bool
-contains es id = DIS.member (idToInt id) (toIntSet es)
+contains = flip member
+
+isEmpty :: EntitySet -> Bool
+isEmpty = (0 ==) . size
+
+size :: EntitySet -> Int
+size = DIS.size . toIntSet
 
 union :: EntitySet -> EntitySet -> EntitySet
 union = lift2 DIS.union
