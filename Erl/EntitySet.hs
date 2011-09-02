@@ -3,8 +3,8 @@
 module Erl.EntitySet (EntitySet,
                       empty,
                       singleton,
-                      add,
-                      remove,
+                      insert,
+                      delete,
                       member,
                       contains,
                       isEmpty,
@@ -27,11 +27,11 @@ empty = EntitySet DIS.empty
 singleton :: EntityId -> EntitySet
 singleton = fromIntSet . DIS.singleton . toInt
 
-add :: EntityId -> EntitySet -> EntitySet
-add id es = fromIntSet $ DIS.insert (toInt id) (toIntSet es)
+insert :: EntityId -> EntitySet -> EntitySet
+insert id es = fromIntSet $ DIS.insert (toInt id) (toIntSet es)
 
-remove :: EntityId -> EntitySet -> EntitySet
-remove id es = fromIntSet $ DIS.delete (toInt id) (toIntSet es)
+delete :: EntityId -> EntitySet -> EntitySet
+delete id es = fromIntSet $ DIS.delete (toInt id) (toIntSet es)
 
 member :: EntityId -> EntitySet -> Bool
 member id es = DIS.member (toInt id) (toIntSet es)
