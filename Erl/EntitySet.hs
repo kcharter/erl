@@ -25,16 +25,16 @@ empty :: EntitySet
 empty = EntitySet DIS.empty
 
 singleton :: EntityId -> EntitySet
-singleton = fromIntSet . DIS.singleton . idToInt
+singleton = fromIntSet . DIS.singleton . toInt
 
 add :: EntityId -> EntitySet -> EntitySet
-add id es = fromIntSet $ DIS.insert (idToInt id) (toIntSet es)
+add id es = fromIntSet $ DIS.insert (toInt id) (toIntSet es)
 
 remove :: EntityId -> EntitySet -> EntitySet
-remove id es = fromIntSet $ DIS.delete (idToInt id) (toIntSet es)
+remove id es = fromIntSet $ DIS.delete (toInt id) (toIntSet es)
 
 member :: EntityId -> EntitySet -> Bool
-member id es = DIS.member (idToInt id) (toIntSet es)
+member id es = DIS.member (toInt id) (toIntSet es)
 
 contains :: EntitySet -> EntityId -> Bool
 contains = flip member
@@ -58,16 +58,10 @@ lift2 :: (DIS.IntSet -> DIS.IntSet -> DIS.IntSet) -> EntitySet -> EntitySet -> E
 lift2 f es1 es2 = fromIntSet $ f (toIntSet es1) (toIntSet es2)
 
 toList :: EntitySet -> [EntityId]
-toList es = map intToId $ DIS.toList $ toIntSet es
+toList es = map fromInt $ DIS.toList $ toIntSet es
 
 fromList :: [EntityId] -> EntitySet
-fromList = fromIntSet . DIS.fromList . map idToInt
-
-idToInt :: EntityId -> Int
-idToInt (EntityId i) = i
-
-intToId :: Int -> EntityId
-intToId = EntityId
+fromList = fromIntSet . DIS.fromList . map toInt
 
 toIntSet :: EntitySet -> DIS.IntSet
 toIntSet (EntitySet s) = s
