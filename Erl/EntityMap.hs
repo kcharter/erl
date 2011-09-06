@@ -15,12 +15,14 @@ module Erl.EntityMap (EntityMap,
                       intersection,
                       fold,
                       adjust,
-                      alter
+                      alter,
+                      map
                      ) where
 
 import Control.Arrow (first)
 import qualified Data.IntMap as DIM
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, map)
+import qualified Prelude as P
 
 import Erl.Entity (EntityId, toInt, fromInt)
 
@@ -48,16 +50,16 @@ delete :: EntityId -> EntityMap a -> EntityMap a
 delete i = fromIntMap . DIM.delete (toInt i) . toIntMap
 
 ids :: EntityMap a -> [EntityId]
-ids = map fromInt . DIM.keys . toIntMap
+ids = P.map fromInt . DIM.keys . toIntMap
 
 values :: EntityMap a -> [a]
 values = DIM.elems . toIntMap
 
 toList :: EntityMap a -> [(EntityId, a)]
-toList = map (first fromInt) . DIM.toList . toIntMap
+toList = P.map (first fromInt) . DIM.toList . toIntMap
 
 fromList :: [(EntityId, a)] -> EntityMap a
-fromList = fromIntMap . DIM.fromList . map (first toInt)
+fromList = fromIntMap . DIM.fromList . P.map (first toInt)
 
 toIntMap :: EntityMap a -> DIM.IntMap a
 toIntMap (EntityMap m) = m
@@ -82,6 +84,9 @@ adjust f i = fromIntMap . DIM.adjust f (toInt i) . toIntMap
 
 alter :: (Maybe a -> Maybe a) -> EntityId -> EntityMap a -> EntityMap a
 alter f i = fromIntMap . DIM.alter f (toInt i) . toIntMap
+
+map :: (a -> b) -> EntityMap a -> EntityMap b
+map f = fromIntMap . DIM.map f . toIntMap
 
 lift2 :: (DIM.IntMap a -> DIM.IntMap a -> DIM.IntMap a) -> EntityMap a -> EntityMap a -> EntityMap a
 lift2 f em1 em2 = fromIntMap $ f (toIntMap em1) (toIntMap em2)
