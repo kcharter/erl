@@ -13,7 +13,8 @@ module Erl.EntitySet (EntitySet,
                       difference,
                       intersection,
                       toList,
-                      fromList) where
+                      fromList,
+                      isSubsetOf) where
 
 import qualified Data.IntSet as DIS
 
@@ -62,6 +63,9 @@ toList es = map fromInt $ DIS.toList $ toIntSet es
 
 fromList :: [EntityId] -> EntitySet
 fromList = fromIntSet . DIS.fromList . map toInt
+
+isSubsetOf :: EntitySet -> EntitySet -> Bool
+isSubsetOf es1 es2 = DIS.isSubsetOf (toIntSet es1) (toIntSet es2)
 
 toIntSet :: EntitySet -> DIS.IntSet
 toIntSet (EntitySet s) = s
