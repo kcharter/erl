@@ -16,7 +16,8 @@ module Erl.EntityMap (EntityMap,
                       fold,
                       adjust,
                       alter,
-                      map
+                      map,
+                      mapMaybe
                      ) where
 
 import Control.Arrow (first)
@@ -87,6 +88,9 @@ alter f i = fromIntMap . DIM.alter f (toInt i) . toIntMap
 
 map :: (a -> b) -> EntityMap a -> EntityMap b
 map f = fromIntMap . DIM.map f . toIntMap
+
+mapMaybe :: (a -> Maybe b) -> EntityMap a -> EntityMap b
+mapMaybe f = fromIntMap . DIM.mapMaybe f . toIntMap
 
 lift2 :: (DIM.IntMap a -> DIM.IntMap a -> DIM.IntMap a) -> EntityMap a -> EntityMap a -> EntityMap a
 lift2 f em1 em2 = fromIntMap $ f (toIntMap em1) (toIntMap em2)
