@@ -25,7 +25,9 @@ runTests =
             quickCheckResult $ forAll withMaybeMember prop_rightImage,
             quickCheckResult $ forAll withMaybeMember prop_leftImage,
             quickCheckResult $ forAll withMaybeTwoMembers prop_rightImage1,
-            quickCheckResult $ forAll withMaybeTwoMembers prop_leftImage1]
+            quickCheckResult $ forAll withMaybeTwoMembers prop_leftImage1,
+            quickCheckResult prop_composeEmpty,
+            quickCheckResult prop_compose]
 
 
 prop_sizeToList :: BinRel -> Bool
@@ -78,6 +80,22 @@ prop_rightImage1 (r, (x, y), (w, z)) =
 prop_leftImage1 ::  (BinRel, (EntityId, EntityId), (EntityId, EntityId)) -> Bool
 prop_leftImage1 (r, (x, y), (w, z)) =
   leftImage (ES.fromList [y,z]) r == leftImage (ES.singleton y) r `ES.union` leftImage (ES.singleton z) r
+
+prop_composeEmpty :: BinRel -> Bool
+prop_composeEmpty r =
+  empty == compose r empty && empty == compose empty r
+
+prop_compose :: (BinRel, BinRel) -> Bool
+prop_compose (r, q) =
+  all leftProp (toList r) &&
+  all rightProp (toList q) &&
+  all compNoBigger (toList comp)
+    where leftProp (x,y) = rightImage' y q `ES.isSubsetOf` rightImage' x comp
+          rightProp (x,y) = leftImage' x r `ES.isSubsetOf` leftImage' y comp
+          compNoBigger (x, y) =
+            rightImage' x comp `ES.isSubsetOf` rightImage (rightImage' x r) q &&
+            leftImage' y comp `ES.isSubsetOf` leftImage (leftImage' y q) r
+          comp = r `compose` q
 
 withMaybeMember :: Gen (BinRel, (EntityId, EntityId))
 withMaybeMember = do

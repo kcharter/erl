@@ -15,6 +15,8 @@ module Erl.BinRel (BinRelId,
                    rightSet,
                    rightImage,
                    leftImage,
+                   rightImage',
+                   leftImage',
                    compose,
                    union,
                    difference,
@@ -98,7 +100,13 @@ image' :: (BinRel -> EntityMap EntitySet) -> EntityId -> BinRel -> EntitySet
 image' toImageMap eid = maybe ES.empty id . EM.lookup eid . toImageMap
 
 compose :: BinRel -> BinRel -> BinRel
-compose = ni
+compose r q = BinRel { fromLeft = fl', fromRight = fr' }
+  where fl' = EM.mapMaybe furtherRight $ fromLeft  r
+        fr' = EM.mapMaybe furtherLeft  $ fromRight q
+        furtherRight s = nothingIfEmpty $ rightImage s q
+        furtherLeft  s = nothingIfEmpty $ leftImage  s r
+        nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s
+
 
 union :: BinRel -> BinRel -> BinRel
 union = ni
