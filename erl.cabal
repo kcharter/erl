@@ -8,7 +8,8 @@ license:        BSD3
 license-file:   LICENSE
 
 library
-  exposed-modules: Erl.BinRel
+  exposed-modules: Erl,
+                   Erl.BinRel
                    Erl.Entity,
                    Erl.EntityMap,
                    Erl.EntitySet,
