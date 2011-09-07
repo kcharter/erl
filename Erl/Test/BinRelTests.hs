@@ -27,7 +27,9 @@ runTests =
             quickCheckResult $ forAll withMaybeTwoMembers prop_rightImage1,
             quickCheckResult $ forAll withMaybeTwoMembers prop_leftImage1,
             quickCheckResult prop_composeEmpty,
-            quickCheckResult prop_compose]
+            quickCheckResult prop_compose,
+            quickCheckResult prop_unionEmpty,
+            quickCheckResult prop_union]
 
 
 prop_sizeToList :: BinRel -> Bool
@@ -96,6 +98,20 @@ prop_compose (r, q) =
             rightImage' x comp `ES.isSubsetOf` rightImage (rightImage' x r) q &&
             leftImage' y comp `ES.isSubsetOf` leftImage (leftImage' y q) r
           comp = r `compose` q
+
+prop_unionEmpty :: BinRel -> Bool
+prop_unionEmpty r =
+  union r empty == r && union empty r == r
+
+prop_union :: (BinRel, BinRel) -> Bool
+prop_union (r, q) =
+  all inOneOrTheOther (toList u) &&
+  all inUnion (toList r) &&
+  all inUnion (toList q)
+    where inOneOrTheOther (x, y) =
+            member x y r || member x y q
+          inUnion (x, y) = member x y u
+          u = union r q
 
 withMaybeMember :: Gen (BinRel, (EntityId, EntityId))
 withMaybeMember = do

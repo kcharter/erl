@@ -107,9 +107,10 @@ compose r q = BinRel { fromLeft = fl', fromRight = fr' }
         furtherLeft  s = nothingIfEmpty $ leftImage  s r
         nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s
 
-
 union :: BinRel -> BinRel -> BinRel
-union = ni
+union r q = BinRel { fromLeft = fl', fromRight = fr' }
+  where fl' = EM.unionWith ES.union (fromLeft r) (fromLeft q)
+        fr' = EM.unionWith ES.union (fromRight r) (fromRight q)
 
 difference :: BinRel -> BinRel -> BinRel
 difference = ni
