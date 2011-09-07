@@ -118,7 +118,11 @@ difference r q = BinRel { fromLeft = fl', fromRight = fr' }
         nonEmptyDiff s t = nothingIfEmpty $ ES.difference s t
 
 intersection :: BinRel -> BinRel -> BinRel
-intersection = ni
+intersection r q = BinRel { fromLeft = fl', fromRight = fr' }
+  where fl' = intersectImageMaps (fromLeft r) (fromLeft q)
+        fr' = intersectImageMaps (fromRight r) (fromRight q)
+        intersectImageMaps m n = discardEmpties $ EM.intersectionWith ES.intersection m n
+        discardEmpties = EM.filter (not . ES.isEmpty)
 
 nothingIfEmpty :: EntitySet -> Maybe EntitySet
 nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s

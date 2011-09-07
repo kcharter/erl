@@ -31,7 +31,9 @@ runTests =
             quickCheckResult prop_unionEmpty,
             quickCheckResult prop_union,
             quickCheckResult prop_differenceEmpty,
-            quickCheckResult prop_difference]
+            quickCheckResult prop_difference,
+            quickCheckResult prop_intersectionEmpty,
+            quickCheckResult prop_intersection]
 
 
 prop_sizeToList :: BinRel -> Bool
@@ -126,6 +128,19 @@ prop_difference (r, q) =
     where notInDiff (x, y) = not $ member x y diff
           inR (x, y) = member x y r
           diff = difference r q
+
+prop_intersectionEmpty :: BinRel -> Bool
+prop_intersectionEmpty r =
+  intersection r empty == empty && intersection empty r == empty
+
+prop_intersection :: (BinRel, BinRel) -> Bool
+prop_intersection (r, q) =
+  all inRAndQ (toList inter) &&
+  all (inInterIffIn q) (toList r) &&
+  all (inInterIffIn r) (toList q)
+    where inRAndQ (x,y) = member x y r && member x y q
+          inInterIffIn b (x,y) = member x y inter == member x y b
+          inter = intersection r q
 
 withMaybeMember :: Gen (BinRel, (EntityId, EntityId))
 withMaybeMember = do
