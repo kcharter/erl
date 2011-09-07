@@ -11,6 +11,7 @@ module Erl.EntityMap (EntityMap,
                       toList,
                       fromList,
                       union,
+                      unionWith,
                       difference,
                       intersection,
                       fold,
@@ -70,6 +71,9 @@ fromIntMap = EntityMap
 
 union :: EntityMap a -> EntityMap a -> EntityMap a
 union = lift2 DIM.union
+
+unionWith :: (a -> a -> a) -> EntityMap a -> EntityMap a -> EntityMap a
+unionWith f = lift2 (DIM.unionWith f)
 
 difference :: EntityMap a -> EntityMap a -> EntityMap a
 difference = lift2 DIM.difference
