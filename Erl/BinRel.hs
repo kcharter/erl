@@ -105,7 +105,6 @@ compose r q = BinRel { fromLeft = fl', fromRight = fr' }
         fr' = EM.mapMaybe furtherLeft  $ fromRight q
         furtherRight s = nothingIfEmpty $ rightImage s q
         furtherLeft  s = nothingIfEmpty $ leftImage  s r
-        nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s
 
 union :: BinRel -> BinRel -> BinRel
 union r q = BinRel { fromLeft = fl', fromRight = fr' }
@@ -113,9 +112,15 @@ union r q = BinRel { fromLeft = fl', fromRight = fr' }
         fr' = EM.unionWith ES.union (fromRight r) (fromRight q)
 
 difference :: BinRel -> BinRel -> BinRel
-difference = ni
+difference r q = BinRel { fromLeft = fl', fromRight = fr' }
+  where fl' = EM.differenceWith nonEmptyDiff (fromLeft r) (fromLeft q)
+        fr' = EM.differenceWith nonEmptyDiff (fromRight r) (fromLeft q)
+        nonEmptyDiff s t = nothingIfEmpty $ ES.difference s t
 
 intersection :: BinRel -> BinRel -> BinRel
 intersection = ni
+
+nothingIfEmpty :: EntitySet -> Maybe EntitySet
+nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s
 
 ni = error "not implemented"

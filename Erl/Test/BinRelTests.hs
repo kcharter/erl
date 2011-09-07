@@ -29,7 +29,9 @@ runTests =
             quickCheckResult prop_composeEmpty,
             quickCheckResult prop_compose,
             quickCheckResult prop_unionEmpty,
-            quickCheckResult prop_union]
+            quickCheckResult prop_union,
+            quickCheckResult prop_differenceEmpty,
+            quickCheckResult prop_difference]
 
 
 prop_sizeToList :: BinRel -> Bool
@@ -112,6 +114,18 @@ prop_union (r, q) =
             member x y r || member x y q
           inUnion (x, y) = member x y u
           u = union r q
+
+prop_differenceEmpty :: BinRel -> Bool
+prop_differenceEmpty r =
+  difference r empty == r && difference empty r == empty
+
+prop_difference :: (BinRel, BinRel) -> Bool
+prop_difference (r, q) =
+  all notInDiff (toList q) &&
+  all inR (toList diff)
+    where notInDiff (x, y) = not $ member x y diff
+          inR (x, y) = member x y r
+          diff = difference r q
 
 withMaybeMember :: Gen (BinRel, (EntityId, EntityId))
 withMaybeMember = do
