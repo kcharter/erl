@@ -127,4 +127,3 @@ intersection r q = BinRel { fromLeft = fl', fromRight = fr' }
 nothingIfEmpty :: EntitySet -> Maybe EntitySet
 nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s
 
-ni = error "not implemented"
