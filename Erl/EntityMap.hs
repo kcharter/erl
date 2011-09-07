@@ -15,16 +15,20 @@ module Erl.EntityMap (EntityMap,
                       difference,
                       differenceWith,
                       intersection,
+                      intersectionWith,
                       fold,
+                      foldWithKey,
                       adjust,
                       alter,
                       map,
-                      mapMaybe
+                      mapMaybe,
+                      filter,
+                      filterWithKey
                      ) where
 
 import Control.Arrow (first)
 import qualified Data.IntMap as DIM
-import Prelude hiding (lookup, map)
+import Prelude hiding (lookup, map, filter)
 import qualified Prelude as P
 
 import Erl.Entity (EntityId, toInt, fromInt)
@@ -85,8 +89,15 @@ differenceWith f = lift2 (DIM.differenceWith f)
 intersection :: EntityMap a -> EntityMap a -> EntityMap a
 intersection = lift2 DIM.intersection
 
+intersectionWith :: (a -> a -> a) -> EntityMap a -> EntityMap a -> EntityMap a
+intersectionWith f = lift2 (DIM.intersectionWith f)
+
 fold :: (a -> b -> b) -> b -> EntityMap a -> b
 fold f i = DIM.fold f i . toIntMap
+
+foldWithKey :: (EntityId -> a -> b -> b) -> b -> EntityMap a -> b
+foldWithKey f i = DIM.foldWithKey f' i . toIntMap
+  where f' raw = f (fromInt raw)
 
 adjust :: (a -> a) -> EntityId -> EntityMap a -> EntityMap a
 adjust f i = fromIntMap . DIM.adjust f (toInt i) . toIntMap
@@ -99,6 +110,13 @@ map f = fromIntMap . DIM.map f . toIntMap
 
 mapMaybe :: (a -> Maybe b) -> EntityMap a -> EntityMap b
 mapMaybe f = fromIntMap . DIM.mapMaybe f . toIntMap
+
+filter :: (a -> Bool) -> EntityMap a -> EntityMap a
+filter pred = fromIntMap . DIM.filter pred . toIntMap
+
+filterWithKey :: (EntityId -> a -> Bool) -> EntityMap a -> EntityMap a
+filterWithKey pred = fromIntMap . DIM.filterWithKey pred' . toIntMap
+  where pred' raw = pred (fromInt raw)
 
 lift2 :: (DIM.IntMap a -> DIM.IntMap a -> DIM.IntMap a) -> EntityMap a -> EntityMap a -> EntityMap a
 lift2 f em1 em2 = fromIntMap $ f (toIntMap em1) (toIntMap em2)
