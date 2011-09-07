@@ -51,10 +51,10 @@ contains :: EntityMap a -> EntityId -> Bool
 contains = flip member
 
 insert :: EntityId -> a -> EntityMap a -> EntityMap a
-insert i v = fromIntMap . DIM.insert (toInt i) v . toIntMap
+insert i v = lift1 $ DIM.insert (toInt i) v
 
 delete :: EntityId -> EntityMap a -> EntityMap a
-delete i = fromIntMap . DIM.delete (toInt i) . toIntMap
+delete = lift1 . DIM.delete . toInt
 
 ids :: EntityMap a -> [EntityId]
 ids = P.map fromInt . DIM.keys . toIntMap
@@ -100,23 +100,26 @@ foldWithKey f i = DIM.foldWithKey f' i . toIntMap
   where f' raw = f (fromInt raw)
 
 adjust :: (a -> a) -> EntityId -> EntityMap a -> EntityMap a
-adjust f i = fromIntMap . DIM.adjust f (toInt i) . toIntMap
+adjust f i = lift1 $ DIM.adjust f (toInt i)
 
 alter :: (Maybe a -> Maybe a) -> EntityId -> EntityMap a -> EntityMap a
-alter f i = fromIntMap . DIM.alter f (toInt i) . toIntMap
+alter f i = lift1 $ DIM.alter f (toInt i)
 
 map :: (a -> b) -> EntityMap a -> EntityMap b
-map f = fromIntMap . DIM.map f . toIntMap
+map = lift1 . DIM.map
 
 mapMaybe :: (a -> Maybe b) -> EntityMap a -> EntityMap b
-mapMaybe f = fromIntMap . DIM.mapMaybe f . toIntMap
+mapMaybe = lift1 . DIM.mapMaybe
 
 filter :: (a -> Bool) -> EntityMap a -> EntityMap a
-filter pred = fromIntMap . DIM.filter pred . toIntMap
+filter = lift1 . DIM.filter
 
 filterWithKey :: (EntityId -> a -> Bool) -> EntityMap a -> EntityMap a
-filterWithKey pred = fromIntMap . DIM.filterWithKey pred' . toIntMap
+filterWithKey pred = lift1 (DIM.filterWithKey pred')
   where pred' raw = pred (fromInt raw)
+
+lift1 :: (DIM.IntMap a -> DIM.IntMap b) -> EntityMap a -> EntityMap b
+lift1 f = fromIntMap . f . toIntMap
 
 lift2 :: (DIM.IntMap a -> DIM.IntMap a -> DIM.IntMap a) -> EntityMap a -> EntityMap a -> EntityMap a
 lift2 f em1 em2 = fromIntMap $ f (toIntMap em1) (toIntMap em2)
