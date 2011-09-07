@@ -13,6 +13,7 @@ module Erl.EntityMap (EntityMap,
                       union,
                       unionWith,
                       difference,
+                      differenceWith,
                       intersection,
                       fold,
                       adjust,
@@ -77,6 +78,9 @@ unionWith f = lift2 (DIM.unionWith f)
 
 difference :: EntityMap a -> EntityMap a -> EntityMap a
 difference = lift2 DIM.difference
+
+differenceWith :: (a -> a -> Maybe a) -> EntityMap a -> EntityMap a -> EntityMap a
+differenceWith f = lift2 (DIM.differenceWith f)
 
 intersection :: EntityMap a -> EntityMap a -> EntityMap a
 intersection = lift2 DIM.intersection
