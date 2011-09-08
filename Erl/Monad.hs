@@ -15,7 +15,8 @@ module Erl.Monad (ErlError(..),
                   ErlMonad(..),
                   doErl,
                   evalErl,
-                  execErl) where
+                  execErl,
+                  entity) where
 
 import Control.Monad.Error
 import Control.Monad.State
