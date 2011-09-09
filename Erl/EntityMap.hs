@@ -26,53 +26,51 @@ module Erl.EntityMap (EntityMap,
                       filterWithKey
                      ) where
 
-import Control.Arrow (first)
 import qualified Data.Map as DM
 import Prelude hiding (lookup, map, filter)
-import qualified Prelude as P
 
-import Erl.Entity (EntityId, toInt, fromInt)
+import Erl.Entity (EntityId)
 
-newtype EntityMap a = EntityMap (DM.Map Int a) deriving (Eq, Ord, Show)
+newtype EntityMap a = EntityMap (DM.Map EntityId a) deriving (Eq, Ord, Show)
 
 empty :: EntityMap a
-empty = fromIntMap DM.empty
+empty = fromMap DM.empty
 
 singleton :: EntityId -> a -> EntityMap a
-singleton id v = fromIntMap $ DM.singleton (toInt id) v
+singleton id v = fromMap $ DM.singleton id v
 
 lookup :: EntityId -> EntityMap a -> Maybe a
-lookup id m = DM.lookup (toInt id) (toIntMap m)
+lookup id m = DM.lookup id (toMap m)
 
 member :: EntityId -> EntityMap a -> Bool
-member id m = DM.member (toInt id) (toIntMap m)
+member id m = DM.member id (toMap m)
 
 contains :: EntityMap a -> EntityId -> Bool
 contains = flip member
 
 insert :: EntityId -> a -> EntityMap a -> EntityMap a
-insert i v = lift1 $ DM.insert (toInt i) v
+insert i v = lift1 $ DM.insert i v
 
 delete :: EntityId -> EntityMap a -> EntityMap a
-delete = lift1 . DM.delete . toInt
+delete = lift1 . DM.delete
 
 ids :: EntityMap a -> [EntityId]
-ids = P.map fromInt . DM.keys . toIntMap
+ids = DM.keys . toMap
 
 values :: EntityMap a -> [a]
-values = DM.elems . toIntMap
+values = DM.elems . toMap
 
 toList :: EntityMap a -> [(EntityId, a)]
-toList = P.map (first fromInt) . DM.toList . toIntMap
+toList = DM.toList . toMap
 
 fromList :: [(EntityId, a)] -> EntityMap a
-fromList = fromIntMap . DM.fromList . P.map (first toInt)
+fromList = fromMap . DM.fromList
 
-toIntMap :: EntityMap a -> DM.Map Int a
-toIntMap (EntityMap m) = m
+toMap :: EntityMap a -> DM.Map EntityId a
+toMap (EntityMap m) = m
 
-fromIntMap :: DM.Map Int a -> EntityMap a
-fromIntMap = EntityMap
+fromMap :: DM.Map EntityId a -> EntityMap a
+fromMap = EntityMap
 
 union :: EntityMap a -> EntityMap a -> EntityMap a
 union = lift2 DM.union
@@ -93,17 +91,16 @@ intersectionWith :: (a -> a -> a) -> EntityMap a -> EntityMap a -> EntityMap a
 intersectionWith f = lift2 (DM.intersectionWith f)
 
 fold :: (a -> b -> b) -> b -> EntityMap a -> b
-fold f i = DM.fold f i . toIntMap
+fold f i = DM.fold f i . toMap
 
 foldWithKey :: (EntityId -> a -> b -> b) -> b -> EntityMap a -> b
-foldWithKey f i = DM.foldWithKey f' i . toIntMap
-  where f' raw = f (fromInt raw)
+foldWithKey f i = DM.foldWithKey f i . toMap
 
 adjust :: (a -> a) -> EntityId -> EntityMap a -> EntityMap a
-adjust f i = lift1 $ DM.adjust f (toInt i)
+adjust f i = lift1 $ DM.adjust f i
 
 alter :: (Maybe a -> Maybe a) -> EntityId -> EntityMap a -> EntityMap a
-alter f i = lift1 $ DM.alter f (toInt i)
+alter f i = lift1 $ DM.alter f i
 
 map :: (a -> b) -> EntityMap a -> EntityMap b
 map = lift1 . DM.map
@@ -115,11 +112,10 @@ filter :: (a -> Bool) -> EntityMap a -> EntityMap a
 filter = lift1 . DM.filter
 
 filterWithKey :: (EntityId -> a -> Bool) -> EntityMap a -> EntityMap a
-filterWithKey pred = lift1 (DM.filterWithKey pred')
-  where pred' raw = pred (fromInt raw)
+filterWithKey = lift1 . DM.filterWithKey
 
-lift1 :: (DM.Map Int a -> DM.Map Int b) -> EntityMap a -> EntityMap b
-lift1 f = fromIntMap . f . toIntMap
+lift1 :: (DM.Map EntityId a -> DM.Map EntityId b) -> EntityMap a -> EntityMap b
+lift1 f = fromMap . f . toMap
 
-lift2 :: (DM.Map Int a -> DM.Map Int a -> DM.Map Int a) -> EntityMap a -> EntityMap a -> EntityMap a
-lift2 f em1 em2 = fromIntMap $ f (toIntMap em1) (toIntMap em2)
+lift2 :: (DM.Map EntityId a -> DM.Map EntityId a -> DM.Map EntityId a) -> EntityMap a -> EntityMap a -> EntityMap a
+lift2 f em1 em2 = fromMap $ f (toMap em1) (toMap em2)
