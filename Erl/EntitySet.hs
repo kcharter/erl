@@ -16,26 +16,26 @@ module Erl.EntitySet (EntitySet,
                       fromList,
                       isSubsetOf) where
 
-import qualified Data.IntSet as DIS
+import qualified Data.Set as DS
 
 import Erl.Entity
 
-newtype EntitySet = EntitySet DIS.IntSet deriving (Eq, Ord, Show)
+newtype EntitySet = EntitySet (DS.Set Int) deriving (Eq, Ord, Show)
 
 empty :: EntitySet
-empty = EntitySet DIS.empty
+empty = EntitySet DS.empty
 
 singleton :: EntityId -> EntitySet
-singleton = fromIntSet . DIS.singleton . toInt
+singleton = fromSet . DS.singleton . toInt
 
 insert :: EntityId -> EntitySet -> EntitySet
-insert id es = fromIntSet $ DIS.insert (toInt id) (toIntSet es)
+insert id es = fromSet $ DS.insert (toInt id) (toSet es)
 
 delete :: EntityId -> EntitySet -> EntitySet
-delete id es = fromIntSet $ DIS.delete (toInt id) (toIntSet es)
+delete id es = fromSet $ DS.delete (toInt id) (toSet es)
 
 member :: EntityId -> EntitySet -> Bool
-member id es = DIS.member (toInt id) (toIntSet es)
+member id es = DS.member (toInt id) (toSet es)
 
 contains :: EntitySet -> EntityId -> Bool
 contains = flip member
@@ -44,31 +44,31 @@ isEmpty :: EntitySet -> Bool
 isEmpty = (0 ==) . size
 
 size :: EntitySet -> Int
-size = DIS.size . toIntSet
+size = DS.size . toSet
 
 union :: EntitySet -> EntitySet -> EntitySet
-union = lift2 DIS.union
+union = lift2 DS.union
 
 difference :: EntitySet -> EntitySet -> EntitySet
-difference = lift2 DIS.difference
+difference = lift2 DS.difference
 
 intersection :: EntitySet -> EntitySet -> EntitySet
-intersection = lift2 DIS.intersection
+intersection = lift2 DS.intersection
 
-lift2 :: (DIS.IntSet -> DIS.IntSet -> DIS.IntSet) -> EntitySet -> EntitySet -> EntitySet
-lift2 f es1 es2 = fromIntSet $ f (toIntSet es1) (toIntSet es2)
+lift2 :: (DS.Set Int -> DS.Set Int -> DS.Set Int) -> EntitySet -> EntitySet -> EntitySet
+lift2 f es1 es2 = fromSet $ f (toSet es1) (toSet es2)
 
 toList :: EntitySet -> [EntityId]
-toList es = map fromInt $ DIS.toList $ toIntSet es
+toList es = map fromInt $ DS.toList $ toSet es
 
 fromList :: [EntityId] -> EntitySet
-fromList = fromIntSet . DIS.fromList . map toInt
+fromList = fromSet . DS.fromList . map toInt
 
 isSubsetOf :: EntitySet -> EntitySet -> Bool
-isSubsetOf es1 es2 = DIS.isSubsetOf (toIntSet es1) (toIntSet es2)
+isSubsetOf es1 es2 = DS.isSubsetOf (toSet es1) (toSet es2)
 
-toIntSet :: EntitySet -> DIS.IntSet
-toIntSet (EntitySet s) = s
+toSet :: EntitySet -> DS.Set Int
+toSet (EntitySet s) = s
 
-fromIntSet :: DIS.IntSet -> EntitySet
-fromIntSet = EntitySet
+fromSet :: DS.Set Int -> EntitySet
+fromSet = EntitySet
