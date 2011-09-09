@@ -1,7 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
-module Erl.BinRel (BinRelId,
-                   BinRel,
+module Erl.BinRel (BinRel,
                    empty,
                    singleton,
                    insert,
@@ -27,8 +24,6 @@ import Erl.EntitySet (EntitySet)
 import qualified Erl.EntitySet as ES
 import Erl.EntityMap (EntityMap)
 import qualified Erl.EntityMap as EM
-
-newtype BinRelId = BinRelId Int deriving (Eq, Ord, Enum, Show)
 
 data BinRel = BinRel { fromLeft :: EntityMap EntitySet,
                        fromRight :: EntityMap EntitySet } deriving (Eq, Ord, Show)

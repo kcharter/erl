@@ -16,7 +16,8 @@ module Erl.Monad (ErlError(..),
                   doErl,
                   evalErl,
                   execErl,
-                  entity) where
+                  entity,
+                  BinRelId) where
 
 import Control.Monad.Error
 import Control.Monad.State
@@ -94,6 +95,8 @@ emptyState = ErlTState {
   nextEntityId = E.EntityId 0,
   allEntities = DM.empty
   }
+
+newtype BinRelId = BinRelId Int deriving (Eq, Ord, Enum, Show)
 
 throwMsg :: (Error e, MonadError e m) => String -> m a
 throwMsg = throwError . strMsg
