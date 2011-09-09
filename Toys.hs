@@ -17,24 +17,24 @@ toyData = ToyData
 newtype Toys a = Toys { runToys :: ErlMonad ToyData a }
                deriving (Monad, MonadError ErlError, MonadErl ToyData)
 
-doToys :: Toys a -> ErlTState ToyData -> (Either ErlError a, ErlTState ToyData)
+doToys :: Toys a -> ErlState ToyData -> (Either ErlError a, ErlState ToyData)
 doToys m s = doErl (runToys m) s
 
-doToys' :: Toys a -> ErlTState ToyData -> (a, ErlTState ToyData)
+doToys' :: Toys a -> ErlState ToyData -> (a, ErlState ToyData)
 doToys' m s = let (errOrResult, s') = doToys m s
               in either (error . show) (,s') errOrResult
 
-evalToys :: Toys a -> ErlTState ToyData -> Either ErlError a
+evalToys :: Toys a -> ErlState ToyData -> Either ErlError a
 evalToys m s = evalErl (runToys m) s
 
-evalToys' :: Toys a -> ErlTState ToyData -> a
+evalToys' :: Toys a -> ErlState ToyData -> a
 evalToys' m s = either (error . show) id $  evalToys m s
 
 evalToys'' :: Toys a -> a
 evalToys'' m = evalToys' m initial
 
 molly, gordon, milo, lucy, lola, boris :: EntityId
-initial :: ErlTState ToyData
+initial :: ErlState ToyData
 
 createToy :: String -> Int -> Toys EntityId
 createToy name age = createEntity $ toyData name age
