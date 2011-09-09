@@ -94,7 +94,7 @@ fold :: (a -> b -> b) -> b -> EntityMap a -> b
 fold f i = DM.fold f i . toMap
 
 foldWithKey :: (EntityId -> a -> b -> b) -> b -> EntityMap a -> b
-foldWithKey f i = DM.foldWithKey f i . toMap
+foldWithKey f i = DM.foldrWithKey f i . toMap
 
 adjust :: (a -> a) -> EntityId -> EntityMap a -> EntityMap a
 adjust f i = lift1 $ DM.adjust f i
