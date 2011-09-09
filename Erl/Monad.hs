@@ -12,7 +12,7 @@ module Erl.Monad (ErlError(..),
                   doErlT,
                   evalErlT,
                   execErlT,
-                  ErlMonad(..),
+                  Erl(..),
                   doErl,
                   evalErl,
                   execErl,
@@ -56,17 +56,17 @@ evalErlT erl state = evalStateT (runErrorT $ runErlT erl) state
 execErlT :: (Monad m) => ErlT d m a -> ErlState d -> m (ErlState d)
 execErlT erl state = execStateT (runErrorT $ runErlT erl) state
 
-newtype ErlMonad d a =
-  ErlMonad { runErl ::  ErlT d Identity a }
+newtype Erl d a =
+  Erl { runErl ::  ErlT d Identity a }
   deriving (Monad, MonadError ErlError, MonadErl d)
 
-doErl :: ErlMonad d a -> ErlState d -> (Either ErlError a, ErlState d)
+doErl :: Erl d a -> ErlState d -> (Either ErlError a, ErlState d)
 doErl erl state = runIdentity $ doErlT (runErl erl) state
 
-evalErl :: ErlMonad d a -> ErlState d -> Either ErlError a
+evalErl :: Erl d a -> ErlState d -> Either ErlError a
 evalErl erl state = runIdentity $ evalErlT (runErl erl) state
 
-execErl :: ErlMonad d a -> ErlState d -> ErlState d
+execErl :: Erl d a -> ErlState d -> ErlState d
 execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where

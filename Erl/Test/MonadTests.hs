@@ -45,7 +45,7 @@ prop_deleteEntity2 (s, id) = do
     deleteEntity id
     (not . ES.member id) `liftM` selectEntities (const True)
 
-checkErl :: ErlState d -> ErlMonad d Bool -> Bool
+checkErl :: ErlState d -> Erl d Bool -> Bool
 checkErl s erl =
   either (const False) id $ evalErl erl s
 

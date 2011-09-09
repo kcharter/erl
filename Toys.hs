@@ -14,7 +14,7 @@ toyData :: String -> Int -> ToyData
 toyData = ToyData
 
 
-newtype Toys a = Toys { runToys :: ErlMonad ToyData a }
+newtype Toys a = Toys { runToys :: Erl ToyData a }
                deriving (Monad, MonadError ErlError, MonadErl ToyData)
 
 doToys :: Toys a -> ErlState ToyData -> (Either ErlError a, ErlState ToyData)
