@@ -17,6 +17,7 @@ module Erl.Monad (ErlError(..),
                   evalErl,
                   execErl,
                   entity,
+                  EntitySetId,
                   BinRelId) where
 
 import Control.Monad.Error
@@ -95,6 +96,8 @@ emptyState = ErlState {
   nextEntityId = E.EntityId 0,
   allEntities = DM.empty
   }
+
+newtype EntitySetId = EntitySetId Int deriving (Eq, Ord, Enum, Show)
 
 newtype BinRelId = BinRelId Int deriving (Eq, Ord, Enum, Show)
 
