@@ -19,7 +19,9 @@ module Erl.Monad (ErlError(..),
                   getEntitySet,
                   getEntity,
                   EntitySetId,
-                  BinRelId) where
+                  entitySetId,
+                  BinRelId,
+                  binRelId) where
 
 import Control.Monad.Error
 import Control.Monad.State
@@ -38,9 +40,10 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   createEntitySet :: m EntitySetId
   deleteEntitySet :: EntitySetId -> m ()
   lookupEntitySet :: EntitySetId -> m (Maybe ES.EntitySet)
+  entitySetIds :: m [EntitySetId]
   selectEntities :: (d -> Bool) -> m ES.EntitySet
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
-  createEntity :: d -> m E.EntityId
+  createEntity :: EntitySetId -> d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
 
@@ -82,9 +85,10 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   createEntitySet = modify' esCreateEntitySet
   deleteEntitySet esid = modify (esDeleteEntitySet esid)
   lookupEntitySet esid = esLookupEntitySet esid `liftM` get
+  entitySetIds = esEntitySetIds `liftM` get
   selectEntities pred =  esSelectEntities pred `liftM` get
   lookupEntity eid = esLookupEntity eid `liftM` get
-  createEntity attrs = modify' (esCreateEntity attrs)
+  createEntity esid attrs = modify'' (esCreateEntity esid attrs)
   deleteEntity eid = modify (esDeleteEntity eid)
   updateEntity = ni
 
@@ -101,6 +105,9 @@ esDeleteEntitySet esid s = s { entitySets = DM.delete esid (entitySets s) }
 esLookupEntitySet :: EntitySetId -> ErlState d -> Maybe ES.EntitySet
 esLookupEntitySet esid s = fmap entitySet $ DM.lookup esid (entitySets s)
 
+esEntitySetIds :: ErlState d -> [EntitySetId]
+esEntitySetIds = DM.keys . entitySets
+
 esSelectEntities :: (d -> Bool) -> ErlState d -> ES.EntitySet
 esSelectEntities pred =
   ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities
@@ -109,12 +116,16 @@ esSelectEntities pred =
 esLookupEntity :: E.EntityId -> ErlState d -> Maybe (E.Entity d)
 esLookupEntity eid = DM.lookup eid . allEntities
 
-esCreateEntity :: d -> ErlState d -> (E.EntityId, ErlState d)
-esCreateEntity attrs s = (eid, s')
-  where eid = nextEntityId s
-        e  = E.Entity { E.id = eid, E.attributes = attrs }
-        s' = s { nextEntityId = succ eid,
-                 allEntities = DM.insert eid e (allEntities s) }
+esCreateEntity :: EntitySetId -> d -> ErlState d -> Either ErlError (E.EntityId, ErlState d)
+esCreateEntity esid attrs s =
+  maybe noSuchEntitySet doCreate $ esLookupEntitySet esid s
+    where noSuchEntitySet = throwMsg $ "No such entity set " ++ show esid ++ "."
+          doCreate esid = return (eid, s')
+            where
+              eid = nextEntityId s
+              e  = E.Entity { E.id = eid, E.attributes = attrs }
+              s' = s { nextEntityId = succ eid,
+                       allEntities = DM.insert eid e (allEntities s) }
 
 esDeleteEntity :: E.EntityId -> ErlState d -> ErlState d
 esDeleteEntity eid s = s { allEntities = DM.delete eid (allEntities s) }
@@ -140,11 +151,24 @@ emptyState = ErlState {
 
 newtype EntitySetId = EntitySetId Int deriving (Eq, Ord, Enum, Show)
 
+entitySetId :: Int -> EntitySetId
+entitySetId = EntitySetId
+
 newtype BinRelId = BinRelId Int deriving (Eq, Ord, Enum, Show)
+
+binRelId :: Int -> BinRelId
+binRelId = BinRelId
 
 modify' :: (MonadState s m) => (s -> (a,s)) -> m a
 modify' f = do
   (r, s') <- f `liftM` get
+  put s'
+  return r
+
+modify'' :: (MonadError e m, MonadState s m) => (s -> Either e (a,s)) -> m a
+modify'' f = do
+  errOrPair <- f `liftM` get
+  (r, s') <- either throwError return $ errOrPair
   put s'
   return r
 
