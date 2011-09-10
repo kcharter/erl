@@ -18,6 +18,7 @@ module Erl.Monad (ErlError(..),
                   execErl,
                   getEntitySet,
                   getEntity,
+                  getEntityAttributes,
                   EntitySetId,
                   entitySetId,
                   BinRelId,
@@ -43,6 +44,7 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   entitySetIds :: m [EntitySetId]
   selectEntities :: (d -> Bool) -> m ES.EntitySet
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
+  lookupEntityAttributes :: E.EntityId -> m (Maybe d)
   createEntity :: EntitySetId -> d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
@@ -54,6 +56,10 @@ getEntitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
 getEntity :: (MonadErl d m) => E.EntityId -> m (E.Entity d)
 getEntity id = maybe noSuchInstance return =<< lookupEntity id
   where noSuchInstance = throwMsg $ "No instance for entity ID " ++ show id ++ "."
+
+getEntityAttributes :: (MonadErl d m) => E.EntityId -> m d
+getEntityAttributes eid = maybe noSuchEntity return =<< lookupEntityAttributes eid
+  where noSuchEntity = throwMsg $ "No entity with ID " ++ show eid ++ "."
 
 newtype ErlT d m a =
   ErlT { runErlT :: ErrorT ErlError (StateT (ErlState d) m) a }
@@ -88,6 +94,7 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   entitySetIds = esEntitySetIds `liftM` get
   selectEntities pred =  esSelectEntities pred `liftM` get
   lookupEntity eid = esLookupEntity eid `liftM` get
+  lookupEntityAttributes eid = esLookupEntityAttributes eid `liftM` get
   createEntity esid attrs = modify'' (esCreateEntity esid attrs)
   deleteEntity eid = modify (esDeleteEntity eid)
   updateEntity = ni
@@ -115,6 +122,9 @@ esSelectEntities pred =
 
 esLookupEntity :: E.EntityId -> ErlState d -> Maybe (E.Entity d)
 esLookupEntity eid = DM.lookup eid . allEntities
+
+esLookupEntityAttributes :: E.EntityId -> ErlState d -> Maybe d
+esLookupEntityAttributes eid s = fmap E.attributes $ esLookupEntity eid s
 
 esCreateEntity :: EntitySetId -> d -> ErlState d -> Either ErlError (E.EntityId, ErlState d)
 esCreateEntity esid attrs s =
