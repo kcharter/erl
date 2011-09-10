@@ -110,14 +110,10 @@ esEntitySetIds = DM.keys . entitySets
 
 esSelectEntities :: (d -> Bool) -> ErlState d -> ES.EntitySet
 esSelectEntities pred =
-  ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities
-    where pred' = pred . E.attributes
-
-esLookupEntity :: E.EntityId -> ErlState d -> Maybe (E.Entity d)
-esLookupEntity eid = DM.lookup eid . allEntities
+  ES.fromList . DM.keys . DM.filter pred . entityAttributes
 
 esLookupEntityAttributes :: E.EntityId -> ErlState d -> Maybe d
-esLookupEntityAttributes eid s = fmap E.attributes $ esLookupEntity eid s
+esLookupEntityAttributes eid s = DM.lookup eid $ entityAttributes s
 
 esCreateEntity :: EntitySetId -> d -> ErlState d -> Either ErlError (E.EntityId, ErlState d)
 esCreateEntity esid attrs s =
@@ -126,18 +122,17 @@ esCreateEntity esid attrs s =
           doCreate esid = return (eid, s')
             where
               eid = nextEntityId s
-              e  = E.Entity { E.id = eid, E.attributes = attrs }
               s' = s { nextEntityId = succ eid,
-                       allEntities = DM.insert eid e (allEntities s) }
+                       entityAttributes = DM.insert eid attrs (entityAttributes s) }
 
 esDeleteEntity :: E.EntityId -> ErlState d -> ErlState d
-esDeleteEntity eid s = s { allEntities = DM.delete eid (allEntities s) }
+esDeleteEntity eid s = s { entityAttributes = DM.delete eid (entityAttributes s) }
 
 data ErlState d = ErlState {
   nextEntitySetId :: EntitySetId,
   entitySets :: DM.Map EntitySetId EntitySetRec,
   nextEntityId :: E.EntityId,
-  allEntities :: DM.Map E.EntityId (E.Entity d)
+  entityAttributes :: DM.Map E.EntityId d
   } deriving (Show)
 
 data EntitySetRec = EntitySetRec {
@@ -149,7 +144,7 @@ emptyState = ErlState {
   nextEntitySetId = EntitySetId 0,
   entitySets = DM.empty,
   nextEntityId = E.EntityId 0,
-  allEntities = DM.empty
+  entityAttributes = DM.empty
   }
 
 newtype EntitySetId = EntitySetId Int deriving (Eq, Ord, Enum, Show)

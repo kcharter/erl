@@ -31,22 +31,27 @@ evalToys' :: Toys a -> ErlState ToyData -> a
 evalToys' m s = either (error . show) id $  evalToys m s
 
 evalToys'' :: Toys a -> a
-evalToys'' m = evalToys' m initial
+evalToys'' m = evalToys' m emptyToys
+
+toys :: EntitySetId
+emptyToys :: ErlState ToyData
+(toys, emptyToys) = flip doToys' emptyState $ createEntitySet
 
 molly, gordon, milo, lucy, lola, boris :: EntityId
-initial :: ErlState ToyData
+initialToys :: ErlState ToyData
 
 createToy :: String -> Int -> Toys EntityId
-createToy name age = createEntity $ toyData name age
+createToy name age = createEntity toys $ toyData name age
 
 getName :: EntityId -> Toys String
-getName eid = (name . attributes) `liftM` entity eid
+getName eid = name `liftM` getEntityAttributes eid
 
 getAge :: EntityId -> Toys Int
-getAge eid = (age . attributes) `liftM` entity eid
+getAge eid = age `liftM` getEntityAttributes eid
 
-([molly, gordon, milo, lucy, lola, boris], initial) =
-  flip doToys' emptyState $
+([molly, gordon, milo, lucy, lola, boris], initialToys) =
+  flip doToys' emptyToys $ do
+    toys <- createEntitySet
     sequence [createToy "Molly" 20,
               createToy "Gordon" 45,
               createToy "Milo" 7,
