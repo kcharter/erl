@@ -16,7 +16,8 @@ module Erl.Monad (ErlError(..),
                   doErl,
                   evalErl,
                   execErl,
-                  entity,
+                  getEntitySet,
+                  getEntity,
                   EntitySetId,
                   BinRelId) where
 
@@ -43,12 +44,12 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
 
-entitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
-entitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
+getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
+getEntitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
   where noSuchEntitySet = throwMsg $ "No entity set for ID " ++ show esid ++ "."
 
-entity :: (MonadErl d m) => E.EntityId -> m (E.Entity d)
-entity id = maybe noSuchInstance return =<< lookupEntity id
+getEntity :: (MonadErl d m) => E.EntityId -> m (E.Entity d)
+getEntity id = maybe noSuchInstance return =<< lookupEntity id
   where noSuchInstance = throwMsg $ "No instance for entity ID " ++ show id ++ "."
 
 newtype ErlT d m a =
