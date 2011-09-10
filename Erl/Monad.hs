@@ -79,9 +79,9 @@ execErl :: Erl d a -> ErlState d -> ErlState d
 execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where
-  createEntitySet = ni
-  destroyEntitySet = ni
-  lookupEntitySet = ni
+  createEntitySet = modify' esCreateEntitySet
+  destroyEntitySet esid = modify (esDeleteEntitySet esid)
+  lookupEntitySet esid = esLookupEntitySet esid `liftM` get
   selectEntities pred = (ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities) `liftM` get
     where pred' = pred . E.attributes
   lookupEntity id = (DM.lookup id . allEntities) `liftM` get
@@ -97,13 +97,34 @@ instance (Monad m) => MonadErl d (ErlT d m) where
     s { allEntities = DM.delete id (allEntities s) }
   updateEntity = ni
 
+esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
+esCreateEntitySet s = (r, s')
+  where r = nextEntitySetId s
+        s' = s { nextEntitySetId = succ r,
+                 entitySets = DM.insert r rec (entitySets s) }
+        rec = EntitySetRec { entitySet = ES.empty }
+
+esDeleteEntitySet :: EntitySetId -> ErlState d -> ErlState d
+esDeleteEntitySet esid s = s { entitySets = DM.delete esid (entitySets s) }
+
+esLookupEntitySet :: EntitySetId -> ErlState d -> Maybe ES.EntitySet
+esLookupEntitySet esid s = fmap entitySet $ DM.lookup esid (entitySets s)
+
 data ErlState d = ErlState {
+  nextEntitySetId :: EntitySetId,
+  entitySets :: DM.Map EntitySetId EntitySetRec,
   nextEntityId :: E.EntityId,
   allEntities :: DM.Map E.EntityId (E.Entity d)
   } deriving (Show)
 
+data EntitySetRec = EntitySetRec {
+  entitySet :: ES.EntitySet
+  } deriving (Show)
+
 emptyState :: ErlState d
 emptyState = ErlState {
+  nextEntitySetId = EntitySetId 0,
+  entitySets = DM.empty,
   nextEntityId = E.EntityId 0,
   allEntities = DM.empty
   }
@@ -112,8 +133,13 @@ newtype EntitySetId = EntitySetId Int deriving (Eq, Ord, Enum, Show)
 
 newtype BinRelId = BinRelId Int deriving (Eq, Ord, Enum, Show)
 
+modify' :: (MonadState s m) => (s -> (a,s)) -> m a
+modify' f = do
+  (r, s') <- f `liftM` get
+  put s'
+  return r
+
 throwMsg :: (Error e, MonadError e m) => String -> m a
 throwMsg = throwError . strMsg
 
 ni = error "Not implemented"
-
