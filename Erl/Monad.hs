@@ -82,19 +82,10 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   createEntitySet = modify' esCreateEntitySet
   destroyEntitySet esid = modify (esDeleteEntitySet esid)
   lookupEntitySet esid = esLookupEntitySet esid `liftM` get
-  selectEntities pred = (ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities) `liftM` get
-    where pred' = pred . E.attributes
-  lookupEntity id = (DM.lookup id . allEntities) `liftM` get
-  createEntity attrs = do
-    s <- get
-    let id = nextEntityId s
-        e  = E.Entity { E.id = id, E.attributes = attrs }
-        s' = s { nextEntityId = succ id,
-                 allEntities = DM.insert id e (allEntities s) }
-    put s'
-    return id
-  deleteEntity id = modify $ \s ->
-    s { allEntities = DM.delete id (allEntities s) }
+  selectEntities pred =  esSelectEntities pred `liftM` get
+  lookupEntity eid = esLookupEntity eid `liftM` get
+  createEntity attrs = modify' (esCreateEntity attrs)
+  deleteEntity eid = modify (esDeleteEntity eid)
   updateEntity = ni
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
@@ -109,6 +100,24 @@ esDeleteEntitySet esid s = s { entitySets = DM.delete esid (entitySets s) }
 
 esLookupEntitySet :: EntitySetId -> ErlState d -> Maybe ES.EntitySet
 esLookupEntitySet esid s = fmap entitySet $ DM.lookup esid (entitySets s)
+
+esSelectEntities :: (d -> Bool) -> ErlState d -> ES.EntitySet
+esSelectEntities pred =
+  ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities
+    where pred' = pred . E.attributes
+
+esLookupEntity :: E.EntityId -> ErlState d -> Maybe (E.Entity d)
+esLookupEntity eid = DM.lookup eid . allEntities
+
+esCreateEntity :: d -> ErlState d -> (E.EntityId, ErlState d)
+esCreateEntity attrs s = (eid, s')
+  where eid = nextEntityId s
+        e  = E.Entity { E.id = eid, E.attributes = attrs }
+        s' = s { nextEntityId = succ eid,
+                 allEntities = DM.insert eid e (allEntities s) }
+
+esDeleteEntity :: E.EntityId -> ErlState d -> ErlState d
+esDeleteEntity eid s = s { allEntities = DM.delete eid (allEntities s) }
 
 data ErlState d = ErlState {
   nextEntitySetId :: EntitySetId,
