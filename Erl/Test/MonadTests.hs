@@ -16,7 +16,7 @@ runTests :: IO Bool
 runTests =
   all isSuccess `liftM`
   sequence [quickCheckResult prop_createEntitySet,
-            quickCheckResult prop_destroyEntitySet,
+            quickCheckResult prop_deleteEntitySet,
             quickCheckResult prop_createEntity1,
             quickCheckResult prop_createEntity2,
             quickCheckResult prop_deleteEntity1,
@@ -28,11 +28,11 @@ prop_createEntitySet s =
     esid <- createEntitySet
     maybe (return False) (return . ES.isEmpty) =<< lookupEntitySet esid
 
-prop_destroyEntitySet :: ErlState Int -> Bool
-prop_destroyEntitySet s =
+prop_deleteEntitySet :: ErlState Int -> Bool
+prop_deleteEntitySet s =
   checkErl s $ do
     esid <- createEntitySet
-    destroyEntitySet esid
+    deleteEntitySet esid
     maybe (return True) (const (return False)) =<< lookupEntitySet esid
 
 prop_createEntity1 :: (ErlState Int, Int) -> Bool

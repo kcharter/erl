@@ -36,7 +36,7 @@ instance Error ErlError where
 
 class (MonadError ErlError m) => MonadErl d m | m -> d where
   createEntitySet :: m EntitySetId
-  destroyEntitySet :: EntitySetId -> m ()
+  deleteEntitySet :: EntitySetId -> m ()
   lookupEntitySet :: EntitySetId -> m (Maybe ES.EntitySet)
   selectEntities :: (d -> Bool) -> m ES.EntitySet
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
@@ -80,7 +80,7 @@ execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where
   createEntitySet = modify' esCreateEntitySet
-  destroyEntitySet esid = modify (esDeleteEntitySet esid)
+  deleteEntitySet esid = modify (esDeleteEntitySet esid)
   lookupEntitySet esid = esLookupEntitySet esid `liftM` get
   selectEntities pred =  esSelectEntities pred `liftM` get
   lookupEntity eid = esLookupEntity eid `liftM` get
