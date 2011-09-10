@@ -34,11 +34,18 @@ instance Error ErlError where
   strMsg = ErlError
 
 class (MonadError ErlError m) => MonadErl d m | m -> d where
+  createEntitySet :: m EntitySetId
+  destroyEntitySet :: EntitySetId -> m ()
+  lookupEntitySet :: EntitySetId -> m (Maybe ES.EntitySet)
   selectEntities :: (d -> Bool) -> m ES.EntitySet
   lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
   createEntity :: d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
+
+entitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
+entitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
+  where noSuchEntitySet = throwMsg $ "No entity set for ID " ++ show esid ++ "."
 
 entity :: (MonadErl d m) => E.EntityId -> m (E.Entity d)
 entity id = maybe noSuchInstance return =<< lookupEntity id
@@ -71,6 +78,9 @@ execErl :: Erl d a -> ErlState d -> ErlState d
 execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where
+  createEntitySet = ni
+  destroyEntitySet = ni
+  lookupEntitySet = ni
   selectEntities pred = (ES.fromList . map E.id . DM.elems . DM.filter pred' . allEntities) `liftM` get
     where pred' = pred . E.attributes
   lookupEntity id = (DM.lookup id . allEntities) `liftM` get
