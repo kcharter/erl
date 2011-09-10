@@ -49,15 +49,14 @@ prop_createEntity (s, esid, val) =
             checkFails (createEntity esid val)
           checkCreateSucceeds _ = do
             id <- createEntity esid val
-            checkAll [maybe False (checkCreated id) `liftM` lookupEntity id,
+            checkAll [maybe False (val ==) `liftM` lookupEntityAttributes id,
                       ES.member id `liftM` selectEntities (const True)]
-              where checkCreated id e = E.id e == id && E.attributes e == val
 
 prop_deleteEntity :: (ErlState Int, E.EntityId) -> Bool
 prop_deleteEntity (s, id) = do
   checkErl s $ do
     deleteEntity id
-    checkAll [maybe True (const False) `liftM` lookupEntity id,
+    checkAll [maybe True (const False) `liftM` lookupEntityAttributes id,
               (not . ES.member id) `liftM` selectEntities (const True)]
 
 checkErl :: ErlState d -> Erl d Bool -> Bool

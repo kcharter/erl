@@ -17,7 +17,6 @@ module Erl.Monad (ErlError(..),
                   evalErl,
                   execErl,
                   getEntitySet,
-                  getEntity,
                   getEntityAttributes,
                   EntitySetId,
                   entitySetId,
@@ -43,7 +42,6 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   lookupEntitySet :: EntitySetId -> m (Maybe ES.EntitySet)
   entitySetIds :: m [EntitySetId]
   selectEntities :: (d -> Bool) -> m ES.EntitySet
-  lookupEntity :: E.EntityId -> m (Maybe (E.Entity d))
   lookupEntityAttributes :: E.EntityId -> m (Maybe d)
   createEntity :: EntitySetId -> d -> m E.EntityId
   deleteEntity :: E.EntityId -> m ()
@@ -52,10 +50,6 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
 getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
 getEntitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
   where noSuchEntitySet = throwMsg $ "No entity set for ID " ++ show esid ++ "."
-
-getEntity :: (MonadErl d m) => E.EntityId -> m (E.Entity d)
-getEntity id = maybe noSuchInstance return =<< lookupEntity id
-  where noSuchInstance = throwMsg $ "No instance for entity ID " ++ show id ++ "."
 
 getEntityAttributes :: (MonadErl d m) => E.EntityId -> m d
 getEntityAttributes eid = maybe noSuchEntity return =<< lookupEntityAttributes eid
@@ -93,7 +87,6 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   lookupEntitySet esid = esLookupEntitySet esid `liftM` get
   entitySetIds = esEntitySetIds `liftM` get
   selectEntities pred =  esSelectEntities pred `liftM` get
-  lookupEntity eid = esLookupEntity eid `liftM` get
   lookupEntityAttributes eid = esLookupEntityAttributes eid `liftM` get
   createEntity esid attrs = modify'' (esCreateEntity esid attrs)
   deleteEntity eid = modify (esDeleteEntity eid)
