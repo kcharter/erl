@@ -41,7 +41,8 @@ molly, gordon, milo, lucy, lola, boris :: EntityId
 initialToys :: ErlState ToyData
 
 createToy :: String -> Int -> Toys EntityId
-createToy name age = createEntity toys $ toyData name age
+-- TODO: add data when we can associate it with entity sets
+createToy name age = createEntity
 
 getName :: EntityId -> Toys String
 getName eid = name `liftM` getEntityAttributes eid

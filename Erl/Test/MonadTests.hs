@@ -17,7 +17,7 @@ runTests =
   all isSuccess `liftM`
   sequence [quickCheckResult prop_createEntitySet,
             quickCheckResult prop_deleteEntitySet,
-            quickCheckResult $ forAll withEntitySetIdAndVal prop_createEntity,
+            quickCheckResult prop_createEntity,
             quickCheckResult prop_deleteEntity]
 
 prop_createEntitySet :: ErlState Int -> Bool
@@ -42,22 +42,17 @@ haveEntitySet esid =
 inEntitySetIds :: (MonadErl d m) => EntitySetId -> m Bool
 inEntitySetIds esid = elem esid `liftM` entitySetIds
 
-prop_createEntity :: (ErlState Int, EntitySetId, Int) -> Bool
-prop_createEntity (s, esid, val) =
-  checkErl s $ maybe checkCreateFails checkCreateSucceeds =<< lookupEntitySet esid
-    where checkCreateFails =
-            checkFails (createEntity esid val)
-          checkCreateSucceeds _ = do
-            id <- createEntity esid val
-            checkAll [maybe False (val ==) `liftM` lookupEntityAttributes id,
-                      ES.member id `liftM` selectEntities (const True)]
+prop_createEntity :: ErlState Int -> Bool
+prop_createEntity s =
+  checkErl s $ do
+    eid <- createEntity
+    hasEntity eid
 
 prop_deleteEntity :: (ErlState Int, E.EntityId) -> Bool
-prop_deleteEntity (s, id) = do
+prop_deleteEntity (s, eid) = do
   checkErl s $ do
-    deleteEntity id
-    checkAll [maybe True (const False) `liftM` lookupEntityAttributes id,
-              (not . ES.member id) `liftM` selectEntities (const True)]
+    deleteEntity eid
+    not `liftM` hasEntity eid
 
 checkErl :: ErlState d -> Erl d Bool -> Bool
 checkErl s erl =
@@ -73,11 +68,10 @@ checkFails m =
 instance (Arbitrary d) => Arbitrary (ErlState d) where
   arbitrary = do
     s1 <- foldr addEntitySet emptyState `liftM` arbitrary
-    esids <- sampleEntitySetIds s1
-    values <- arbitrary
-    return $ foldr addEntity s1 $ zip esids values
+    -- TODO: add some entities to some entity sets with data
+    foldr addEntity s1 `liftM` arbitrary
       where addEntitySet () = execErl createEntitySet
-            addEntity (esid, val) s = execErl (createEntity esid val) s
+            addEntity () = execErl createEntity
 
 withEntitySetIdAndVal :: (Arbitrary d) => Gen (ErlState d, EntitySetId, d)
 withEntitySetIdAndVal = do

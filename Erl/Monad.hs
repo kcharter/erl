@@ -30,6 +30,7 @@ import qualified Data.Map as DM
 
 import qualified Erl.Entity as E
 import qualified Erl.EntitySet as ES
+import qualified Erl.EntityMap as EM
 
 data ErlError = ErlError String deriving (Eq, Ord, Show)
 
@@ -43,7 +44,8 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   entitySetIds :: m [EntitySetId]
   selectEntities :: (d -> Bool) -> m ES.EntitySet
   lookupEntityAttributes :: E.EntityId -> m (Maybe d)
-  createEntity :: EntitySetId -> d -> m E.EntityId
+  createEntity :: m E.EntityId
+  hasEntity    :: E.EntityId -> m Bool
   deleteEntity :: E.EntityId -> m ()
   updateEntity :: E.EntityId -> (d -> d) -> m ()
 
@@ -88,7 +90,8 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   entitySetIds = esEntitySetIds `liftM` get
   selectEntities pred =  esSelectEntities pred `liftM` get
   lookupEntityAttributes eid = esLookupEntityAttributes eid `liftM` get
-  createEntity esid attrs = modify'' (esCreateEntity esid attrs)
+  createEntity = modify' esCreateEntity
+  hasEntity eid = esHasEntity eid `liftM` get
   deleteEntity eid = modify (esDeleteEntity eid)
   updateEntity = ni
 
@@ -115,23 +118,24 @@ esSelectEntities pred =
 esLookupEntityAttributes :: E.EntityId -> ErlState d -> Maybe d
 esLookupEntityAttributes eid s = DM.lookup eid $ entityAttributes s
 
-esCreateEntity :: EntitySetId -> d -> ErlState d -> Either ErlError (E.EntityId, ErlState d)
-esCreateEntity esid attrs s =
-  maybe noSuchEntitySet doCreate $ esLookupEntitySet esid s
-    where noSuchEntitySet = throwMsg $ "No such entity set " ++ show esid ++ "."
-          doCreate esid = return (eid, s')
-            where
-              eid = nextEntityId s
-              s' = s { nextEntityId = succ eid,
-                       entityAttributes = DM.insert eid attrs (entityAttributes s) }
+esCreateEntity :: ErlState d -> (E.EntityId, ErlState d)
+esCreateEntity s = (eid, s')
+  where eid = nextEntityId s
+        s' = s { nextEntityId = succ eid,
+                 entities = EM.insert eid EntityRec (entities s) }
+
+esHasEntity :: E.EntityId -> ErlState d -> Bool
+esHasEntity eid s = EM.member eid $ entities s
 
 esDeleteEntity :: E.EntityId -> ErlState d -> ErlState d
-esDeleteEntity eid s = s { entityAttributes = DM.delete eid (entityAttributes s) }
+esDeleteEntity eid s = s { entities = EM.delete eid (entities s),
+                           entityAttributes = DM.delete eid (entityAttributes s) }
 
 data ErlState d = ErlState {
   nextEntitySetId :: EntitySetId,
   entitySets :: DM.Map EntitySetId EntitySetRec,
   nextEntityId :: E.EntityId,
+  entities :: EM.EntityMap EntityRec,
   entityAttributes :: DM.Map E.EntityId d
   } deriving (Show)
 
@@ -139,11 +143,15 @@ data EntitySetRec = EntitySetRec {
   entitySet :: ES.EntitySet
   } deriving (Show)
 
+data EntityRec = EntityRec {
+  } deriving (Show)
+
 emptyState :: ErlState d
 emptyState = ErlState {
   nextEntitySetId = EntitySetId 0,
   entitySets = DM.empty,
   nextEntityId = E.EntityId 0,
+  entities = EM.empty,
   entityAttributes = DM.empty
   }
 
