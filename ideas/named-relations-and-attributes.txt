@@ -1,0 +1,167 @@
+Named Relations and Attributes
+==============================
+
+I've been thinking for a bit about whether to include an entity set ID
+in an entity ID. I've concluded that this might not be the right way
+to proceed, because it introduces an asymmetry between entity sets and
+binary relations.
+
+Generalization: EntitySets and BinRels are both relations
+---------------------------------------------------------
+
+First, it's probably useful to observe that EntitySets and BinRels are
+*both* types of relations over EntityId:
+
+  - an EntitySet is a unary relation over EntityId
+
+  - a BinRel is a binary relation over EntityId
+
+To pick out an element of a particular *named* EntitySet, we supply
+both the EntitySetId (the set name) and an EntityId.
+
+To pick out an element of a particular *named* BinRel, we supply both
+the BinRelId and two EntityIds.
+
+If you imagine that we extended Erl to arbitrary arity relations over
+EntityId, then to pick out an element of a named relation 'R' of arity
+'n', we'd supply
+
+  - the relation ID (i.e. relation name)
+
+  - a tuple of 'n' EntityIds
+
+The fact that this simple generalization covers both EntitySets and
+BinRels is pleasing and I think indicates that I'm doing something
+right.
+
+Why including an EntitySetId in an EntityId is a bad idea
+---------------------------------------------------------
+
+I was thinking of having the notion of a 'home' named entity set for
+each entity, where the EntitySetId is included as part of the
+EntityId. I would change EntityId from
+
+ newtype EntityId = EntityId Int
+
+to
+
+ data EntityId = EntityId EntitySetId Int
+
+I thought that this would have an advantage when obtaining the 'home'
+entity set from an EntityId. However, if an entity can be in more than
+one named EntitySet -- and there is no reason not to allow, for
+example, a named set that is a subset of another (think of Bears among
+Toys) -- then we still need to use a pair
+
+ EntitySetId EntityId
+
+to address an element of a named entity set in general, since an
+entity could be in an EntitySet whose EntitySetId is different from
+the one in the EntitySetId. Therefore, the notion of a 'home' named
+entity set just unnecessarily enlarges the interface of MonadErl.
+
+It also introduces a conceptual assymmetry between EntitySet and
+BinRel. While an EntityId would have a closely associated named 'home'
+EntitySet, it doesn't have a similar closely associated 'home' BinRel.
+
+Relations tie entities to extra data
+------------------------------------
+
+One of the functions of MonadErl is to tie entities to data through
+named EntitySets and BinRels. Originally, I thought it made sense to
+tie extra data directly to an EntityId, but I think a more consistent
+approach is to tie data to an entity's membership in an
+EntitySet. This is more consistent with how I plan to treat BinRels,
+where we can retrieve data associated with a pair like so
+
+ lookupBinRelAttributes :: BinRelId -> EntityId -> EntityId -> m (Maybe d)
+
+It would make sense for the interface for EntitySets to look similar:
+
+ lookupEntitySetAttributes :: EntitySetId -> EntityId -> m (Maybe d)
+
+Again, this generalizes nicely to a notion of relations on EntityId:
+to retrieve data associated with the elements of a n-ary named
+relation R, there is a function of the form
+
+ lookupAttributes :: RelId -> EntityId -> ... -> EntityId -> m (Maybe d)
+
+Currently, I've got
+
+ lookupEntityAttributes :: EntityId -> m (Maybe d)
+
+but this would be replaced by 'lookupEntitySetAttributes'.
+
+Only named relations tie entities to extra data
+-----------------------------------------------
+
+Currently, EntitySet and BinRel do not themselves carry extra data;
+it's only a MonadErl that tracks extra data associated with the
+elements of relations over EntityId. I'm not sure yet whether this is
+a good thing or not.
+
+If we were to change EntitySet and BinRel so they carried extra data,
+their types would become
+
+ EntitySet d
+ BinRel d
+
+and there would be a problem to solve in each operation that combines
+relations. For example, BinRel has
+
+  intersection :: BinRel -> BinRel -> BinRel
+
+which would become
+
+  intersection :: BinRel d -> BinRel d -> BinRel d
+
+The result also has extra data, but we have to decide how to compute
+it from the data carried by the argument BinRels, and whether or not
+we need to put constraints on the type 'd'. For example, if we were to
+decide that the resulting 'BinRel d' should discard all the data, then
+'d' has to be able to represent 'no data'.
+
+It would also be nice to respect typical laws for union and
+intersection, like associativity and commutativity. This rules out an
+approach like 'take the data from the second BinRel', because then
+
+  x `intersection` y
+
+could carry different extra data than
+
+  y `intersection` x
+
+Further, updates to the associated data may be subject to contraints,
+or trigger other computations, and the updates have to be stored in
+MonadErl state anyway. So I don't think that there is a drawback to
+having the extra data stored within the monad state just for named
+EntitySets and BinRels.
+
+Interface implications
+----------------------
+
+This approach suggests that the 'createEntity' method on MonadErl
+should *not* take an EntitySetId. Entities exist in isolation from any
+particular named entity set. Moreover, extra data is associated only
+with EntitySets and BinRels, so there is no need for 'createEntity' to
+take a 'd' either. We would have
+
+ createEntity :: m EntityId
+
+and
+
+ addToEntitySet :: EntitySetId -> EntityId -> d -> m ()
+ addToBinRel :: BinRelId -> EntityId -> EntityId -> d -> m ()
+
+and
+
+ removeFromEntitySet :: EntitySetId -> EntityId -> m ()
+ removefromBinRel :: EntitySetId -> EntityId -> EntityId -> m ()
+
+We might also have
+
+ destroyEntity :: EntityId -> m ()
+
+though this would have to fail if the entity were still present in any
+EntitySets or BinRels. Is it worth the trouble to track which named
+relations an entity lives in?
