@@ -54,12 +54,10 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   lookupEntity :: E.EntityId -> EntitySetId -> m (Maybe d)
 
 getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
-getEntitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
-  where noSuchEntitySet = throwMsg $ "No entity set for ID " ++ show esid ++ "."
+getEntitySet esid = maybe (noSuchSet esid) return =<< lookupEntitySet esid
 
 getEntity :: (MonadErl d m) => E.EntityId -> EntitySetId -> m d
-getEntity eid esid = maybe noSuchEntity return =<< lookupEntity eid esid
-  where noSuchEntity = throwMsg $ "No entity with ID " ++ show eid ++ "."
+getEntity eid esid = maybe (noSuchEntity eid) return =<< lookupEntity eid esid
 
 selectEntities :: (MonadErl d m) => (E.EntityId -> m Bool) -> ES.EntitySet -> m ES.EntitySet
 selectEntities mpred eset =
@@ -167,13 +165,17 @@ esLookupEntity eid esid s =
 
 esGetEntitySetRec :: EntitySetId -> ErlState d -> Either ErlError (EntitySetRec d)
 esGetEntitySetRec esid s =
-  maybe noSuchSet return $ DM.lookup esid $ entitySets s
-    where noSuchSet = throwMsg $ "No such entity set " ++ show esid ++ "."
+  maybe (noSuchSet esid) return $ DM.lookup esid $ entitySets s
 
 esGetEntityRec :: E.EntityId -> ErlState d -> Either ErlError EntityRec
 esGetEntityRec eid s =
-  maybe noSuchEntity return $ EM.lookup eid $ entities s
-    where noSuchEntity = throwMsg $ "No such entity " ++ show eid ++ "."
+  maybe (noSuchEntity eid) return $ EM.lookup eid $ entities s
+
+noSuchSet :: (MonadError ErlError m) => EntitySetId -> m a
+noSuchSet esid = throwMsg $ "No entity set with ID " ++ show esid ++ "."
+
+noSuchEntity :: (MonadError ErlError m) => E.EntityId -> m a
+noSuchEntity eid = throwMsg $ "No entity with ID " ++ show eid ++ "."
 
 data ErlState d = ErlState {
   nextEntitySetId :: EntitySetId,
