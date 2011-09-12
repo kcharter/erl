@@ -30,3 +30,5 @@ test-suite tests
                         mtl >= 2 && < 3,
                         text >= 0.10 && < 1,
                         QuickCheck >= 2 && < 3
+  ghc-options:          -fwarn-incomplete-patterns
+                        -fwarn-unused-imports

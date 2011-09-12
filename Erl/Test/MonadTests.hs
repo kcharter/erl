@@ -1,13 +1,11 @@
 module Erl.Test.MonadTests where
 
-import Control.Monad (unless, liftM)
+import Control.Monad (liftM)
 import Control.Monad.Error (catchError)
-import Data.String
 import Test.QuickCheck
 import Test.QuickCheck.Test (isSuccess)
 
 import Erl.Entity (EntityId)
-import qualified Erl.EntitySet as ES
 import Erl.Monad
 
 import Erl.Test.EntityTests ()
