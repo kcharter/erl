@@ -6,7 +6,7 @@ import Data.String
 import Test.QuickCheck
 import Test.QuickCheck.Test (isSuccess)
 
-import qualified Erl.Entity as E
+import Erl.Entity (EntityId)
 import qualified Erl.EntitySet as ES
 import Erl.Monad
 
@@ -48,7 +48,7 @@ prop_createEntity s =
     eid <- createEntity
     hasEntity eid
 
-prop_deleteEntity :: (ErlState Int, E.EntityId) -> Bool
+prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
 prop_deleteEntity (s, eid) = do
   checkErl s $ do
     deleteEntity eid
@@ -86,7 +86,7 @@ sampleEntitySetIds s =
   if null esids then return [] else listOf (elements esids)
     where esids = either (error . show) id $ evalErl entitySetIds s
 
-withEntity :: (Arbitrary d) => Gen (ErlState d, E.EntityId)
+withEntity :: (Arbitrary d) => Gen (ErlState d, EntityId)
 withEntity = do
   s <- arbitrary
   let ids = either (const []) id $ evalErl entityIds s
