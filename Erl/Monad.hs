@@ -118,13 +118,6 @@ esLookupEntitySet esid s = fmap entitySet $ DM.lookup esid (entitySets s)
 esEntitySetIds :: ErlState d -> [EntitySetId]
 esEntitySetIds = DM.keys . entitySets
 
-esSelectEntities :: (d -> Bool) -> ErlState d -> ES.EntitySet
-esSelectEntities pred = ni
-
-esLookupEntityAttributes :: E.EntityId -> EntitySetId -> ErlState d -> Maybe d
-esLookupEntityAttributes eid esid s =
-  (DM.lookup esid $ entitySets s) >>= (EM.lookup eid . entityAttributes)
-
 esCreateEntity :: ErlState d -> (E.EntityId, ErlState d)
 esCreateEntity s = (eid, s')
   where eid = nextEntityId s
@@ -155,6 +148,13 @@ esRemoveEntity eid esid s = do
       erec'  = erec { inSets = DS.delete esid (inSets erec) }
   return $ s { entitySets = DM.insert esid esrec' (entitySets s),
                entities = EM.insert eid erec' (entities s) }
+
+esSelectEntities :: (d -> Bool) -> ErlState d -> ES.EntitySet
+esSelectEntities pred = ni
+
+esLookupEntityAttributes :: E.EntityId -> EntitySetId -> ErlState d -> Maybe d
+esLookupEntityAttributes eid esid s =
+  (DM.lookup esid $ entitySets s) >>= (EM.lookup eid . entityAttributes)
 
 esGetEntitySetRec :: EntitySetId -> ErlState d -> Either ErlError (EntitySetRec d)
 esGetEntitySetRec esid s =
