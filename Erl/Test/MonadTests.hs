@@ -44,13 +44,15 @@ prop_createEntity :: ErlState Int -> Bool
 prop_createEntity s =
   checkErl s $ do
     eid <- createEntity
-    hasEntity eid
+    checkAll [hasEntity eid,
+              elem eid `liftM` entityIds]
 
 prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
 prop_deleteEntity (s, eid) = do
   checkErl s $ do
     deleteEntity eid
-    not `liftM` hasEntity eid
+    checkAll [not `liftM` hasEntity eid,
+              (not . elem eid) `liftM` entityIds]
 
 checkErl :: ErlState d -> Erl d Bool -> Bool
 checkErl s erl =
