@@ -35,10 +35,13 @@ import qualified Erl.Entity as E
 import qualified Erl.EntitySet as ES
 import qualified Erl.EntityMap as EM
 
-data ErlError = ErlError String deriving (Eq, Ord, Show)
+data ErlError = NoSuchEntitySet EntitySetId |
+                NoSuchEntity E.EntityId |
+                NoSuchBinRel BinRelId |
+                GeneralError String deriving (Eq, Ord, Show)
 
 instance Error ErlError where
-  strMsg = ErlError
+  strMsg = GeneralError
 
 class (MonadError ErlError m) => MonadErl d m | m -> d where
   createEntitySet :: m EntitySetId
@@ -172,10 +175,13 @@ esGetEntityRec eid s =
   maybe (noSuchEntity eid) return $ EM.lookup eid $ entities s
 
 noSuchSet :: (MonadError ErlError m) => EntitySetId -> m a
-noSuchSet esid = throwMsg $ "No entity set with ID " ++ show esid ++ "."
+noSuchSet esid = throwError $ NoSuchEntitySet esid
 
 noSuchEntity :: (MonadError ErlError m) => E.EntityId -> m a
-noSuchEntity eid = throwMsg $ "No entity with ID " ++ show eid ++ "."
+noSuchEntity eid = throwError $ NoSuchEntity eid
+
+noSuchBinRel :: (MonadError ErlError m) => BinRelId -> m a
+noSuchBinRel bid = throwError $ NoSuchBinRel bid
 
 data ErlState d = ErlState {
   nextEntitySetId :: EntitySetId,
