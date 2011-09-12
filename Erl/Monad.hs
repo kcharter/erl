@@ -18,7 +18,7 @@ module Erl.Monad (ErlError(..),
                   evalErl,
                   execErl,
                   getEntitySet,
-                  getEntityAttributes,
+                  getEntity,
                   selectEntities,
                   EntitySetId,
                   entitySetId,
@@ -51,14 +51,14 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   entityIds    :: m [E.EntityId]
   addEntity    :: E.EntityId -> d -> EntitySetId -> m ()
   removeEntity :: E.EntityId -> EntitySetId -> m ()
-  lookupEntityAttributes :: E.EntityId -> EntitySetId -> m (Maybe d)
+  lookupEntity :: E.EntityId -> EntitySetId -> m (Maybe d)
 
 getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
 getEntitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
   where noSuchEntitySet = throwMsg $ "No entity set for ID " ++ show esid ++ "."
 
-getEntityAttributes :: (MonadErl d m) => E.EntityId -> EntitySetId -> m d
-getEntityAttributes eid esid = maybe noSuchEntity return =<< lookupEntityAttributes eid esid
+getEntity :: (MonadErl d m) => E.EntityId -> EntitySetId -> m d
+getEntity eid esid = maybe noSuchEntity return =<< lookupEntity eid esid
   where noSuchEntity = throwMsg $ "No entity with ID " ++ show eid ++ "."
 
 selectEntities :: (MonadErl d m) => (E.EntityId -> m Bool) -> ES.EntitySet -> m ES.EntitySet
@@ -67,7 +67,7 @@ selectEntities mpred eset =
   
 updateEntity :: (MonadErl d m) => E.EntityId -> (d -> m d) -> EntitySetId -> m ()
 updateEntity eid f esid = do
-  getEntityAttributes eid esid >>= f >>= flip (addEntity eid) esid
+  getEntity eid esid >>= f >>= flip (addEntity eid) esid
 
 newtype ErlT d m a =
   ErlT { runErlT :: ErrorT ErlError (StateT (ErlState d) m) a }
@@ -106,7 +106,7 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   entityIds = esEntityIds `liftM` get
   addEntity eid attrs esid = modify''' (esAddEntity eid attrs esid)
   removeEntity eid esid = modify''' (esRemoveEntity eid esid)
-  lookupEntityAttributes eid esid = esLookupEntityAttributes eid esid `liftM` get
+  lookupEntity eid esid = esLookupEntity eid esid `liftM` get
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
 esCreateEntitySet s = (r, s')
@@ -161,8 +161,8 @@ esRemoveEntity eid esid s = do
   return $ s { entitySets = DM.insert esid esrec' (entitySets s),
                entities = EM.insert eid erec' (entities s) }
 
-esLookupEntityAttributes :: E.EntityId -> EntitySetId -> ErlState d -> Maybe d
-esLookupEntityAttributes eid esid s =
+esLookupEntity :: E.EntityId -> EntitySetId -> ErlState d -> Maybe d
+esLookupEntity eid esid s =
   (DM.lookup esid $ entitySets s) >>= (EM.lookup eid . entityAttributes)
 
 esGetEntitySetRec :: EntitySetId -> ErlState d -> Either ErlError (EntitySetRec d)

@@ -47,10 +47,10 @@ createToy name age = do
   return eid
 
 getName :: EntityId -> Toys String
-getName eid = name `liftM` getEntityAttributes eid toys
+getName eid = name `liftM` getEntity eid toys
 
 getAge :: EntityId -> Toys Int
-getAge eid = age `liftM` getEntityAttributes eid toys
+getAge eid = age `liftM` getEntity eid toys
 
 ([molly, gordon, milo, lucy, lola, boris], initialToys) =
   flip doToys' emptyToys $ do
