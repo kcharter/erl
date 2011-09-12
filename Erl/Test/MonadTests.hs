@@ -89,8 +89,8 @@ sampleEntitySetIds s =
 withEntity :: (Arbitrary d) => Gen (ErlState d, E.EntityId)
 withEntity = do
   s <- arbitrary
-  let ids = either (const ES.empty) id $ evalErl (selectEntities (const True)) s
-  id <- if ES.isEmpty ids then arbitrary else elements (ES.toList ids)
+  let ids = either (const []) id $ evalErl entityIds s
+  id <- if null ids then arbitrary else elements ids
   return (s, id)
 
 instance Arbitrary EntitySetId where

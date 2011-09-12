@@ -19,6 +19,7 @@ module Erl.Monad (ErlError(..),
                   execErl,
                   getEntitySet,
                   getEntityAttributes,
+                  selectEntities,
                   EntitySetId,
                   entitySetId,
                   BinRelId,
@@ -47,10 +48,10 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   createEntity :: m E.EntityId
   deleteEntity :: E.EntityId -> m ()
   hasEntity    :: E.EntityId -> m Bool
+  entityIds    :: m [E.EntityId]
   addEntity    :: E.EntityId -> d -> EntitySetId -> m ()
   removeEntity :: E.EntityId -> EntitySetId -> m ()
   lookupEntityAttributes :: E.EntityId -> EntitySetId -> m (Maybe d)
-  selectEntities :: (d -> Bool) -> m ES.EntitySet
   updateEntity :: E.EntityId -> (d -> d) -> m ()
 
 getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
@@ -61,6 +62,10 @@ getEntityAttributes :: (MonadErl d m) => E.EntityId -> EntitySetId -> m d
 getEntityAttributes eid esid = maybe noSuchEntity return =<< lookupEntityAttributes eid esid
   where noSuchEntity = throwMsg $ "No entity with ID " ++ show eid ++ "."
 
+selectEntities :: (MonadErl d m) => (E.EntityId -> m Bool) -> ES.EntitySet -> m ES.EntitySet
+selectEntities mpred eset =
+  ES.fromList `liftM` filterM mpred (ES.toList eset)
+  
 newtype ErlT d m a =
   ErlT { runErlT :: ErrorT ErlError (StateT (ErlState d) m) a }
   deriving (Monad, MonadError ErlError, MonadState (ErlState d), MonadIO)
@@ -95,10 +100,10 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   createEntity = modify' esCreateEntity
   deleteEntity eid = modify (esDeleteEntity eid)
   hasEntity eid = esHasEntity eid `liftM` get
+  entityIds = esEntityIds `liftM` get
   addEntity eid attrs esid = modify''' (esAddEntity eid attrs esid)
   removeEntity eid esid = modify''' (esRemoveEntity eid esid)
   lookupEntityAttributes eid esid = esLookupEntityAttributes eid esid `liftM` get
-  selectEntities pred =  esSelectEntities pred `liftM` get
   updateEntity = ni
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
@@ -125,17 +130,21 @@ esCreateEntity s = (eid, s')
         s' = s { nextEntityId = succ eid,
                  entities = EM.insert eid erec (entities s) }
 
+esDeleteEntity :: E.EntityId -> ErlState d -> ErlState d
+esDeleteEntity eid s = s { entities = EM.delete eid (entities s) }
+
 esHasEntity :: E.EntityId -> ErlState d -> Bool
 esHasEntity eid s = EM.member eid $ entities s
 
-esDeleteEntity :: E.EntityId -> ErlState d -> ErlState d
-esDeleteEntity eid s = s { entities = EM.delete eid (entities s) }
+esEntityIds :: ErlState d -> [E.EntityId]
+esEntityIds = EM.ids . entities
 
 esAddEntity :: E.EntityId -> d -> EntitySetId -> ErlState d -> Either ErlError (ErlState d)
 esAddEntity eid attrs esid s = do
   esrec <- esGetEntitySetRec esid s
   erec  <- esGetEntityRec eid s
-  let esrec' = esrec { entityAttributes = EM.insert eid attrs (entityAttributes esrec) }
+  let esrec' = esrec { entitySet = ES.insert eid (entitySet esrec),
+                       entityAttributes = EM.insert eid attrs (entityAttributes esrec) }
       erec'  = erec { inSets = DS.insert esid (inSets erec) }
   return $ s { entitySets = DM.insert esid esrec' (entitySets s),
                entities = EM.insert eid erec' (entities s) }
@@ -144,13 +153,11 @@ esRemoveEntity :: E.EntityId -> EntitySetId -> ErlState d -> Either ErlError (Er
 esRemoveEntity eid esid s = do
   esrec <- esGetEntitySetRec esid s
   erec  <- esGetEntityRec eid s
-  let esrec' = esrec { entityAttributes = EM.delete eid (entityAttributes esrec) }
+  let esrec' = esrec { entitySet = ES.delete eid (entitySet esrec),
+                       entityAttributes = EM.delete eid (entityAttributes esrec) }
       erec'  = erec { inSets = DS.delete esid (inSets erec) }
   return $ s { entitySets = DM.insert esid esrec' (entitySets s),
                entities = EM.insert eid erec' (entities s) }
-
-esSelectEntities :: (d -> Bool) -> ErlState d -> ES.EntitySet
-esSelectEntities pred = ni
 
 esLookupEntityAttributes :: E.EntityId -> EntitySetId -> ErlState d -> Maybe d
 esLookupEntityAttributes eid esid s =
