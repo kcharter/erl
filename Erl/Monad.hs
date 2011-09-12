@@ -52,7 +52,6 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   addEntity    :: E.EntityId -> d -> EntitySetId -> m ()
   removeEntity :: E.EntityId -> EntitySetId -> m ()
   lookupEntityAttributes :: E.EntityId -> EntitySetId -> m (Maybe d)
-  updateEntity :: E.EntityId -> (d -> d) -> m ()
 
 getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
 getEntitySet esid = maybe noSuchEntitySet return =<< lookupEntitySet esid
@@ -66,6 +65,10 @@ selectEntities :: (MonadErl d m) => (E.EntityId -> m Bool) -> ES.EntitySet -> m 
 selectEntities mpred eset =
   ES.fromList `liftM` filterM mpred (ES.toList eset)
   
+updateEntity :: (MonadErl d m) => E.EntityId -> (d -> m d) -> EntitySetId -> m ()
+updateEntity eid f esid = do
+  getEntityAttributes eid esid >>= f >>= flip (addEntity eid) esid
+
 newtype ErlT d m a =
   ErlT { runErlT :: ErrorT ErlError (StateT (ErlState d) m) a }
   deriving (Monad, MonadError ErlError, MonadState (ErlState d), MonadIO)
@@ -104,7 +107,6 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   addEntity eid attrs esid = modify''' (esAddEntity eid attrs esid)
   removeEntity eid esid = modify''' (esRemoveEntity eid esid)
   lookupEntityAttributes eid esid = esLookupEntityAttributes eid esid `liftM` get
-  updateEntity = ni
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
 esCreateEntitySet s = (r, s')
