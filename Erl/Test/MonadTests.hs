@@ -16,7 +16,9 @@ runTests =
   sequence [quickCheckResult prop_createEntitySet,
             quickCheckResult prop_deleteEntitySet,
             quickCheckResult prop_createEntity,
-            quickCheckResult prop_deleteEntity]
+            quickCheckResult prop_deleteEntity,
+            quickCheckResult prop_addEntity,
+            quickCheckResult prop_removeEntity]
 
 prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
@@ -54,6 +56,44 @@ prop_deleteEntity (s, eid) = do
     checkAll [not `liftM` hasEntity eid,
               (not . elem eid) `liftM` entityIds]
 
+prop_addEntity :: (ErlState Int, EntitySetId, EntityId, Int) -> Bool
+prop_addEntity (s, esid, eid, val) =
+  checkErl s $
+  caseHasSet esid haveSetCase noSetCase
+    where haveSetCase =
+            caseHasEntity eid happyCase noEntityCase
+          noSetCase =
+            failsWithNoSuchEntitySet esid addition
+          happyCase =
+            addition >>
+            (maybe False (val ==) `liftM` lookupEntity eid esid)
+          noEntityCase =
+            failsWithNoSuchEntity eid addition
+          addition = addEntity eid val esid
+
+prop_removeEntity :: (ErlState Int, EntitySetId, EntityId) -> Bool
+prop_removeEntity (s, esid, eid) =
+  checkErl s $
+  caseHasSet esid haveSetCase noSetCase
+    where haveSetCase = caseHasEntity eid happyCase noEntityCase
+          noSetCase =
+            failsWithNoSuchEntitySet esid removal
+          happyCase =
+            removal >>
+            (maybe True (const False) `liftM` lookupEntity eid esid)
+          noEntityCase =
+            failsWithNoSuchEntity eid removal
+          removal = removeEntity eid esid
+
+caseHasSet :: (MonadErl d m) => EntitySetId -> m a -> m a -> m a
+caseHasSet esid yesCase noCase =
+  maybe noCase (const yesCase) =<< lookupEntitySet esid
+
+caseHasEntity :: (MonadErl d m) => EntityId -> m a -> m a -> m a
+caseHasEntity eid yesCase noCase =
+  hasEntity eid >>=
+  (\present -> if present then yesCase else noCase)
+
 checkErl :: ErlState d -> Erl d Bool -> Bool
 checkErl s erl =
   either (const False) id $ evalErl erl s
@@ -61,9 +101,19 @@ checkErl s erl =
 checkAll :: (Monad m) => [m Bool] -> m Bool
 checkAll = (and `liftM`) . sequence
 
-checkFails :: (MonadErl d m) => m a -> m Bool
-checkFails m =
+failsWithSomeError :: (MonadErl d m) => m a -> m Bool
+failsWithSomeError m =
   (m >> return False) `catchError` (const $ return True)
+
+failsWithNoSuchEntitySet :: (MonadErl d m) => EntitySetId -> m a -> m Bool
+failsWithNoSuchEntitySet esid = failsWithError (NoSuchEntitySet esid)
+
+failsWithNoSuchEntity :: (MonadErl d m) => EntityId -> m a -> m Bool
+failsWithNoSuchEntity eid = failsWithError (NoSuchEntity eid)
+
+failsWithError :: (MonadErl d m) => ErlError -> m a -> m Bool
+failsWithError expectedError op =
+  (op >> return False) `catchError` (return . (expectedError ==))
 
 instance (Arbitrary d) => Arbitrary (ErlState d) where
   arbitrary = do
