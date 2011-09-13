@@ -34,6 +34,7 @@ import qualified Data.Set as DS
 import Erl.Entity (EntityId(..))
 import qualified Erl.EntitySet as ES
 import qualified Erl.EntityMap as EM
+import qualified Erl.BinRel as BR
 
 data ErlError = NoSuchEntitySet EntitySetId |
                 NoSuchEntity EntityId |
@@ -55,6 +56,13 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   addEntity    :: EntityId -> d -> EntitySetId -> m ()
   removeEntity :: EntityId -> EntitySetId -> m ()
   lookupEntity :: EntityId -> EntitySetId -> m (Maybe d)
+  createBinRel :: m BinRelId
+  deleteBinRel :: BinRelId -> m ()
+  lookupBinRel :: BinRelId -> m (Maybe BR.BinRel)
+  binRelIds    :: m [BinRelId]
+  addPair      :: EntityId -> EntityId -> d -> BinRelId -> m ()
+  removePair   :: EntityId -> EntityId -> BinRelId -> m ()
+  lookupPair   :: EntityId -> EntityId -> BinRelId -> m (Maybe d)
 
 getEntitySet :: (MonadErl d m) => EntitySetId -> m ES.EntitySet
 getEntitySet esid = maybe (noSuchSet esid) return =<< lookupEntitySet esid
@@ -108,6 +116,13 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   addEntity eid attrs esid = modify''' (esAddEntity eid attrs esid)
   removeEntity eid esid = modify''' (esRemoveEntity eid esid)
   lookupEntity eid esid = esLookupEntity eid esid `liftM` get
+  createBinRel = ni
+  deleteBinRel bid = ni
+  lookupBinRel bid = ni
+  binRelIds = ni   :: m [BinRelId]
+  addPair eid1 eid2 val bid = ni
+  removePair eid1 eid2 bid = ni
+  lookupPair eid1 eid2 bid = ni
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
 esCreateEntitySet s = (r, s')
