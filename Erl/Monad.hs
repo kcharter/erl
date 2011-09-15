@@ -73,7 +73,7 @@ getEntity eid esid = maybe (noSuchEntity eid) return =<< lookupEntity eid esid
 selectEntities :: (MonadErl d m) => (EntityId -> m Bool) -> ES.EntitySet -> m ES.EntitySet
 selectEntities mpred eset =
   ES.fromList `liftM` filterM mpred (ES.toList eset)
-  
+
 updateEntity :: (MonadErl d m) => EntityId -> (d -> m d) -> EntitySetId -> m ()
 updateEntity eid f esid = do
   getEntity eid esid >>= f >>= flip (addEntity eid) esid
@@ -202,7 +202,9 @@ data ErlState d = ErlState {
   nextEntitySetId :: EntitySetId,
   entitySets :: DM.Map EntitySetId (EntitySetRec d),
   nextEntityId :: EntityId,
-  entities :: EM.EntityMap EntityRec
+  entities :: EM.EntityMap EntityRec,
+  nextBinRelId :: BinRelId,
+  binRels :: DM.Map BinRelId (BinRelRec d)
   } deriving (Show)
 
 data EntitySetRec d = EntitySetRec {
@@ -214,12 +216,19 @@ data EntityRec = EntityRec {
   inSets :: DS.Set EntitySetId
   } deriving (Show)
 
+data BinRelRec d = BinRelRec {
+  binRel :: BR.BinRel,
+  pairAttributes :: EM.EntityMap (EM.EntityMap d)
+  } deriving (Show)
+
 emptyState :: ErlState d
 emptyState = ErlState {
   nextEntitySetId = EntitySetId 0,
   entitySets = DM.empty,
   nextEntityId = EntityId 0,
-  entities = EM.empty
+  entities = EM.empty,
+  nextBinRelId = BinRelId 0,
+  binRels = DM.empty
   }
 
 newtype EntitySetId = EntitySetId Int deriving (Eq, Ord, Enum, Show)
