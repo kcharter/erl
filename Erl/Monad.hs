@@ -116,10 +116,10 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   addEntity eid attrs esid = modify''' (esAddEntity eid attrs esid)
   removeEntity eid esid = modify''' (esRemoveEntity eid esid)
   lookupEntity eid esid = esLookupEntity eid esid `liftM` get
-  createBinRel = ni
-  deleteBinRel bid = ni
-  lookupBinRel bid = ni
-  binRelIds = ni   :: m [BinRelId]
+  createBinRel = modify' esCreateBinRel
+  deleteBinRel bid = modify (esDeleteBinRel bid)
+  lookupBinRel bid = esLookupBinRel bid `liftM` get
+  binRelIds = esBinRelIds `liftM` get
   addPair eid1 eid2 val bid = ni
   removePair eid1 eid2 bid = ni
   lookupPair eid1 eid2 bid = ni
@@ -181,6 +181,23 @@ esLookupEntity :: EntityId -> EntitySetId -> ErlState d -> Maybe d
 esLookupEntity eid esid s =
   (DM.lookup esid $ entitySets s) >>= (EM.lookup eid . entityAttributes)
 
+esCreateBinRel :: ErlState d -> (BinRelId, ErlState d)
+esCreateBinRel s = (bid, s')
+  where bid = nextBinRelId s
+        s' = s { nextBinRelId = succ bid,
+                 binRels = DM.insert bid rec (binRels s) }
+        rec = BinRelRec { binRel = BR.empty,
+                          pairAttributes = EM.empty }
+
+esDeleteBinRel :: BinRelId -> ErlState d -> ErlState d
+esDeleteBinRel bid s = s { binRels = DM.delete bid (binRels s) }
+
+esLookupBinRel :: BinRelId -> ErlState d -> Maybe BR.BinRel
+esLookupBinRel bid = fmap binRel . DM.lookup bid . binRels
+
+esBinRelIds :: ErlState d -> [BinRelId]
+esBinRelIds = DM.keys . binRels
+
 esGetEntitySetRec :: EntitySetId -> ErlState d -> Either ErlError (EntitySetRec d)
 esGetEntitySetRec esid s =
   maybe (noSuchSet esid) return $ DM.lookup esid $ entitySets s
@@ -188,6 +205,10 @@ esGetEntitySetRec esid s =
 esGetEntityRec :: EntityId -> ErlState d -> Either ErlError EntityRec
 esGetEntityRec eid s =
   maybe (noSuchEntity eid) return $ EM.lookup eid $ entities s
+
+esGetBinRelRec :: BinRelId -> ErlState d -> Either ErlError (BinRelRec d)
+esGetBinRelRec bid s =
+  maybe (noSuchBinRel bid) return $ DM.lookup bid $ binRels s
 
 noSuchSet :: (MonadError ErlError m) => EntitySetId -> m a
 noSuchSet esid = throwError $ NoSuchEntitySet esid
