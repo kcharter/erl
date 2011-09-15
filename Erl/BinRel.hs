@@ -14,6 +14,7 @@ module Erl.BinRel (BinRel,
                    leftImage,
                    rightImage',
                    leftImage',
+                   participatesIn,
                    compose,
                    union,
                    difference,
@@ -94,6 +95,10 @@ leftImage' eid = maybe ES.empty id . EM.lookup eid . fromRight
 image' :: (BinRel -> EntityMap EntitySet) -> EntityId -> BinRel -> EntitySet
 image' toImageMap eid = maybe ES.empty id . EM.lookup eid . toImageMap
 
+participatesIn :: EntityId -> BinRel -> Bool
+participatesIn eid r = not (ES.isEmpty $ rightImage' eid r) ||
+                       not (ES.isEmpty $ leftImage' eid r)
+
 compose :: BinRel -> BinRel -> BinRel
 compose r q = BinRel { fromLeft = fl', fromRight = fr' }
   where fl' = EM.mapMaybe furtherRight $ fromLeft  r
@@ -121,4 +126,3 @@ intersection r q = BinRel { fromLeft = fl', fromRight = fr' }
 
 nothingIfEmpty :: EntitySet -> Maybe EntitySet
 nothingIfEmpty s = if ES.isEmpty s then Nothing else Just s
-

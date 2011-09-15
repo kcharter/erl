@@ -144,7 +144,7 @@ esEntitySetIds = DM.keys . entitySets
 esCreateEntity :: ErlState d -> (EntityId, ErlState d)
 esCreateEntity s = (eid, s')
   where eid = nextEntityId s
-        erec = EntityRec { inSets = DS.empty }
+        erec = EntityRec { inSets = DS.empty, inBinRels = DS.empty }
         s' = s { nextEntityId = succ eid,
                  entities = EM.insert eid erec (entities s) }
 
@@ -202,23 +202,41 @@ esBinRelIds = DM.keys . binRels
 esAddPair :: EntityId -> EntityId -> d -> BinRelId -> ErlState d -> Either ErlError (ErlState d)
 esAddPair eid1 eid2 val bid s = do
   rec <- esGetBinRelRec bid s
-  -- TODO check for non-existent entities
+  erec1 <- esGetEntityRec eid1 s
+  erec2 <- esGetEntityRec eid2 s
   let rec' = rec { binRel = BR.insert eid1 eid2 (binRel rec),
                    pairAttributes = EM.alter addVal eid1 (pairAttributes rec) }
       addVal Nothing = Just $ EM.singleton eid2 val
       addVal (Just m) = Just $ EM.insert eid2 val m
-  return $ s { binRels = DM.insert bid rec' (binRels s) }
+      erec1' = addIncidentBinRel erec1 bid
+      erec2' = addIncidentBinRel erec2 bid
+      addIncidentBinRel erec bid = erec { inBinRels = DS.insert bid (inBinRels erec) }
+  return $ s { entities = EM.insert eid2 erec2' (EM.insert eid1 erec1' (entities s)),
+               binRels = DM.insert bid rec' (binRels s) }
 
 esRemovePair :: EntityId -> EntityId -> BinRelId -> ErlState d -> Either ErlError (ErlState d)
 esRemovePair eid1 eid2 bid s = do
   rec <- esGetBinRelRec bid s
-  -- TODO check for non-existent entities
-  let rec' = rec { binRel = BR.delete eid1 eid2 (binRel rec),
+  erec1 <- esGetEntityRec eid1 s
+  erec2 <- esGetEntityRec eid2 s
+  let rec' = rec { binRel = rel',
                    pairAttributes = EM.alter removeVal eid1 (pairAttributes rec) }
+      rel' = BR.delete eid1 eid2 (binRel rec)
       removeVal Nothing = Nothing
       removeVal (Just m) = if EM.isEmpty m' then Nothing else Just m'
         where m' = EM.delete eid2 m
-  return $ s { binRels = DM.insert bid rec' (binRels s) }
+      -- TODO: avoid updating 'entities' if there is no change in
+      -- participation. Surely there is a nice way to do this?
+      entities'  = EM.insert eid1 erec1' (entities s)
+      entities'' = EM.insert eid2 erec2' (entities s)
+      erec1' = adjustParticipation eid1 erec1
+      erec2' = adjustParticipation eid2 erec2
+      adjustParticipation eid erec =
+        if eid `BR.participatesIn` rel'
+        then erec
+        else erec { inBinRels = DS.delete bid (inBinRels erec) }
+  return $ s { entities = entities'',
+               binRels = DM.insert bid rec' (binRels s) }
 
 
 esLookupPair :: EntityId -> EntityId -> BinRelId -> ErlState d -> Maybe d
@@ -261,7 +279,8 @@ data EntitySetRec d = EntitySetRec {
   } deriving (Show)
 
 data EntityRec = EntityRec {
-  inSets :: DS.Set EntitySetId
+  inSets :: DS.Set EntitySetId,
+  inBinRels :: DS.Set BinRelId
   } deriving (Show)
 
 data BinRelRec d = BinRelRec {
