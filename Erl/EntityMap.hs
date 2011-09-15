@@ -4,6 +4,8 @@ module Erl.EntityMap (EntityMap,
                       lookup,
                       member,
                       contains,
+                      size,
+                      isEmpty,
                       insert,
                       delete,
                       ids,
@@ -47,6 +49,12 @@ member id m = DM.member id (toMap m)
 
 contains :: EntityMap a -> EntityId -> Bool
 contains = flip member
+
+size :: EntityMap a -> Int
+size = DM.size . toMap
+
+isEmpty :: EntityMap a -> Bool
+isEmpty = (0==) . size
 
 insert :: EntityId -> a -> EntityMap a -> EntityMap a
 insert i v = lift1 $ DM.insert i v
