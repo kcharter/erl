@@ -20,7 +20,9 @@ runTests =
             quickCheckResult prop_addEntity,
             quickCheckResult prop_removeEntity,
             quickCheckResult prop_createBinRel,
-            quickCheckResult prop_deleteBinRel]
+            quickCheckResult prop_deleteBinRel,
+            quickCheckResult prop_addPair,
+            quickCheckResult prop_removePair]
 
 prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
@@ -109,6 +111,44 @@ haveBinRel bid =
 inBinRelIds :: (MonadErl d m) => BinRelId -> m Bool
 inBinRelIds bid = elem bid `liftM` binRelIds
 
+prop_addPair :: (ErlState Int, BinRelId, EntityId, EntityId, Int) -> Bool
+prop_addPair (s, bid, eid1, eid2, val) =
+  checkErl s $
+  caseHasBinRel bid haveRelCase noRelCase
+    where haveRelCase =
+            caseHasEntity eid1 haveEntity1 noEntity1
+          noRelCase =
+            failsWithNoSuchBinRel bid addition
+          haveEntity1 =
+            caseHasEntity eid2 happyCase noEntity2
+          happyCase =
+            addition >>
+            maybe False (val ==) `liftM` lookupPair eid1 eid2 bid
+          noEntity1 =
+            failsWithNoSuchEntity eid1 addition
+          noEntity2 =
+            failsWithNoSuchEntity eid2 addition
+          addition = addPair eid1 eid2 val bid
+
+prop_removePair :: (ErlState Int, EntityId, EntityId, BinRelId) -> Bool
+prop_removePair (s, eid1, eid2, bid) =
+  checkErl s $
+  caseHasBinRel bid haveRelCase noRelCase
+    where haveRelCase =
+            caseHasEntity eid1 haveEntity1 noEntity1
+          noRelCase =
+            failsWithNoSuchBinRel bid removal
+          haveEntity1 =
+            caseHasEntity eid2 happyCase noEntity2
+          happyCase =
+            removal >>
+            maybe True (const False) `liftM` lookupPair eid1 eid2 bid
+          noEntity1 =
+            failsWithNoSuchEntity eid1 removal
+          noEntity2 =
+            failsWithNoSuchEntity eid2 removal
+          removal = removePair eid1 eid2 bid
+
 caseHasSet :: (MonadErl d m) => EntitySetId -> m a -> m a -> m a
 caseHasSet esid yesCase noCase =
   maybe noCase (const yesCase) =<< lookupEntitySet esid
@@ -117,6 +157,10 @@ caseHasEntity :: (MonadErl d m) => EntityId -> m a -> m a -> m a
 caseHasEntity eid yesCase noCase =
   hasEntity eid >>=
   (\present -> if present then yesCase else noCase)
+
+caseHasBinRel :: (MonadErl d m) => BinRelId -> m a -> m a -> m a
+caseHasBinRel bid yesCase noCase =
+  maybe noCase (const yesCase) =<< lookupBinRel bid
 
 checkErl :: ErlState d -> Erl d Bool -> Bool
 checkErl s erl =
@@ -137,6 +181,9 @@ failsWithNoSuchEntitySet esid = failsWithError (NoSuchEntitySet esid)
 
 failsWithNoSuchEntity :: (MonadErl d m) => EntityId -> m a -> m Bool
 failsWithNoSuchEntity eid = failsWithError (NoSuchEntity eid)
+
+failsWithNoSuchBinRel :: (MonadErl d m) => BinRelId -> m a -> m Bool
+failsWithNoSuchBinRel bid = failsWithError (NoSuchBinRel bid)
 
 failsWithError :: (MonadErl d m) => ErlError -> m a -> m Bool
 failsWithError expectedError op =
@@ -172,3 +219,6 @@ withEntity = do
 
 instance Arbitrary EntitySetId where
   arbitrary = entitySetId `liftM` arbitrary
+
+instance Arbitrary BinRelId where
+  arbitrary = binRelId `liftM` arbitrary
