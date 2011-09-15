@@ -18,7 +18,9 @@ runTests =
             quickCheckResult prop_createEntity,
             quickCheckResult prop_deleteEntity,
             quickCheckResult prop_addEntity,
-            quickCheckResult prop_removeEntity]
+            quickCheckResult prop_removeEntity,
+            quickCheckResult prop_createBinRel,
+            quickCheckResult prop_deleteBinRel]
 
 prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
@@ -84,6 +86,28 @@ prop_removeEntity (s, esid, eid) =
           noEntityCase =
             failsWithNoSuchEntity eid removal
           removal = removeEntity eid esid
+
+prop_createBinRel :: ErlState Int -> Bool
+prop_createBinRel s =
+  checkErl s $ do
+    bid <- createBinRel
+    checkAll [haveBinRel bid,
+              inBinRelIds bid]
+
+prop_deleteBinRel :: ErlState Int -> Bool
+prop_deleteBinRel s =
+  checkErl s $ do
+    bid <- createBinRel
+    deleteBinRel bid
+    checkAll [not `liftM` haveBinRel bid,
+              not `liftM` inBinRelIds bid]
+
+haveBinRel :: (MonadErl d m) => BinRelId -> m Bool
+haveBinRel bid =
+  maybe False (const True) `liftM` lookupBinRel bid
+
+inBinRelIds :: (MonadErl d m) => BinRelId -> m Bool
+inBinRelIds bid = elem bid `liftM` binRelIds
 
 caseHasSet :: (MonadErl d m) => EntitySetId -> m a -> m a -> m a
 caseHasSet esid yesCase noCase =
