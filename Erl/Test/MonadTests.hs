@@ -26,16 +26,16 @@ prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
   checkErl s $ do
     esid <- createEntitySet
-    checkAll [haveEntitySet esid,
-              inEntitySetIds esid]
+    allOf [haveEntitySet esid,
+           inEntitySetIds esid]
 
 prop_deleteEntitySet :: ErlState Int -> Bool
 prop_deleteEntitySet s =
   checkErl s $ do
     esid <- createEntitySet
     deleteEntitySet esid
-    checkNoneOf [haveEntitySet esid,
-                 inEntitySetIds esid]
+    noneOf [haveEntitySet esid,
+            inEntitySetIds esid]
 
 haveEntitySet :: (MonadErl d m) => EntitySetId -> m Bool
 haveEntitySet esid =
@@ -48,15 +48,15 @@ prop_createEntity :: ErlState Int -> Bool
 prop_createEntity s =
   checkErl s $ do
     eid <- createEntity
-    checkAll [hasEntity eid,
-              elem eid `liftM` entityIds]
+    allOf [hasEntity eid,
+           elem eid `liftM` entityIds]
 
 prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
 prop_deleteEntity (s, eid) = do
   checkErl s $ do
     deleteEntity eid
-    checkNoneOf [hasEntity eid,
-                 elem eid `liftM` entityIds]
+    noneOf [hasEntity eid,
+            elem eid `liftM` entityIds]
 
 prop_addEntity :: (ErlState Int, EntitySetId, EntityId, Int) -> Bool
 prop_addEntity (s, esid, eid, val) =
@@ -91,16 +91,16 @@ prop_createBinRel :: ErlState Int -> Bool
 prop_createBinRel s =
   checkErl s $ do
     bid <- createBinRel
-    checkAll [haveBinRel bid,
-              inBinRelIds bid]
+    allOf [haveBinRel bid,
+           inBinRelIds bid]
 
 prop_deleteBinRel :: ErlState Int -> Bool
 prop_deleteBinRel s =
   checkErl s $ do
     bid <- createBinRel
     deleteBinRel bid
-    checkNoneOf [haveBinRel bid,
-                 inBinRelIds bid]
+    noneOf [haveBinRel bid,
+            inBinRelIds bid]
 
 haveBinRel :: (MonadErl d m) => BinRelId -> m Bool
 haveBinRel bid =
@@ -122,11 +122,11 @@ checkErl :: ErlState d -> Erl d Bool -> Bool
 checkErl s erl =
   either (const False) id $ evalErl erl s
 
-checkAll :: (Monad m) => [m Bool] -> m Bool
-checkAll = (and `liftM`) . sequence
+allOf :: (Monad m) => [m Bool] -> m Bool
+allOf = (and `liftM`) . sequence
 
-checkNoneOf :: (Monad m) => [m Bool] -> m Bool
-checkNoneOf = checkAll . map (liftM not)
+noneOf :: (Monad m) => [m Bool] -> m Bool
+noneOf = allOf . map (liftM not)
 
 failsWithSomeError :: (MonadErl d m) => m a -> m Bool
 failsWithSomeError m =
