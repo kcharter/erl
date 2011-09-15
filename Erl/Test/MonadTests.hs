@@ -34,8 +34,8 @@ prop_deleteEntitySet s =
   checkErl s $ do
     esid <- createEntitySet
     deleteEntitySet esid
-    checkAll [not `liftM` haveEntitySet esid,
-              not `liftM` inEntitySetIds esid]
+    checkNoneOf [haveEntitySet esid,
+                 inEntitySetIds esid]
 
 haveEntitySet :: (MonadErl d m) => EntitySetId -> m Bool
 haveEntitySet esid =
@@ -55,8 +55,8 @@ prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
 prop_deleteEntity (s, eid) = do
   checkErl s $ do
     deleteEntity eid
-    checkAll [not `liftM` hasEntity eid,
-              (not . elem eid) `liftM` entityIds]
+    checkNoneOf [hasEntity eid,
+                 elem eid `liftM` entityIds]
 
 prop_addEntity :: (ErlState Int, EntitySetId, EntityId, Int) -> Bool
 prop_addEntity (s, esid, eid, val) =
@@ -99,8 +99,8 @@ prop_deleteBinRel s =
   checkErl s $ do
     bid <- createBinRel
     deleteBinRel bid
-    checkAll [not `liftM` haveBinRel bid,
-              not `liftM` inBinRelIds bid]
+    checkNoneOf [haveBinRel bid,
+                 inBinRelIds bid]
 
 haveBinRel :: (MonadErl d m) => BinRelId -> m Bool
 haveBinRel bid =
@@ -124,6 +124,9 @@ checkErl s erl =
 
 checkAll :: (Monad m) => [m Bool] -> m Bool
 checkAll = (and `liftM`) . sequence
+
+checkNoneOf :: (Monad m) => [m Bool] -> m Bool
+checkNoneOf = checkAll . map (liftM not)
 
 failsWithSomeError :: (MonadErl d m) => m a -> m Bool
 failsWithSomeError m =
