@@ -120,9 +120,9 @@ instance (Monad m) => MonadErl d (ErlT d m) where
   deleteBinRel bid = modify (esDeleteBinRel bid)
   lookupBinRel bid = esLookupBinRel bid `liftM` get
   binRelIds = esBinRelIds `liftM` get
-  addPair eid1 eid2 val bid = ni
-  removePair eid1 eid2 bid = ni
-  lookupPair eid1 eid2 bid = ni
+  addPair eid1 eid2 val bid = modify''' (esAddPair eid1 eid2 val bid)
+  removePair eid1 eid2 bid = modify''' (esRemovePair eid1 eid2 bid)
+  lookupPair eid1 eid2 bid = esLookupPair eid1 eid2 bid `liftM` get
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
 esCreateEntitySet s = (r, s')
@@ -149,6 +149,7 @@ esCreateEntity s = (eid, s')
                  entities = EM.insert eid erec (entities s) }
 
 esDeleteEntity :: EntityId -> ErlState d -> ErlState d
+-- TODO: should fail if the entity is in a named set or relation
 esDeleteEntity eid s = s { entities = EM.delete eid (entities s) }
 
 esHasEntity :: EntityId -> ErlState d -> Bool
@@ -197,6 +198,32 @@ esLookupBinRel bid = fmap binRel . DM.lookup bid . binRels
 
 esBinRelIds :: ErlState d -> [BinRelId]
 esBinRelIds = DM.keys . binRels
+
+esAddPair :: EntityId -> EntityId -> d -> BinRelId -> ErlState d -> Either ErlError (ErlState d)
+esAddPair eid1 eid2 val bid s = do
+  rec <- esGetBinRelRec bid s
+  -- TODO check for non-existent entities
+  let rec' = rec { binRel = BR.insert eid1 eid2 (binRel rec),
+                   pairAttributes = EM.alter addVal eid1 (pairAttributes rec) }
+      addVal Nothing = Just $ EM.singleton eid2 val
+      addVal (Just m) = Just $ EM.insert eid2 val m
+  return $ s { binRels = DM.insert bid rec' (binRels s) }
+
+esRemovePair :: EntityId -> EntityId -> BinRelId -> ErlState d -> Either ErlError (ErlState d)
+esRemovePair eid1 eid2 bid s = do
+  rec <- esGetBinRelRec bid s
+  -- TODO check for non-existent entities
+  let rec' = rec { binRel = BR.delete eid1 eid2 (binRel rec),
+                   pairAttributes = EM.alter removeVal eid1 (pairAttributes rec) }
+      removeVal Nothing = Nothing
+      removeVal (Just m) = if EM.isEmpty m' then Nothing else Just m'
+        where m' = EM.delete eid2 m
+  return $ s { binRels = DM.insert bid rec' (binRels s) }
+
+
+esLookupPair :: EntityId -> EntityId -> BinRelId -> ErlState d -> Maybe d
+esLookupPair eid1 eid2 bid s =
+  DM.lookup bid (binRels s) >>= (EM.lookup eid1 . pairAttributes) >>= EM.lookup eid2
 
 esGetEntitySetRec :: EntitySetId -> ErlState d -> Either ErlError (EntitySetRec d)
 esGetEntitySetRec esid s =
