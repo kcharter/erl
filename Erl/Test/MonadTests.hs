@@ -1,6 +1,8 @@
+{-# LANGUAGE TupleSections #-}
+
 module Erl.Test.MonadTests where
 
-import Control.Monad (liftM)
+import Control.Monad (liftM, liftM2)
 import Control.Monad.Error (catchError)
 import Test.QuickCheck
 import Test.QuickCheck.Test (isSuccess)
@@ -32,11 +34,23 @@ prop_createEntity s =
            elem eid `liftM` entityIds]
 
 prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
-prop_deleteEntity (s, eid) = do
-  checkErl s $ do
-    deleteEntity eid
-    noneOf [hasEntity eid,
-            elem eid `liftM` entityIds]
+prop_deleteEntity (s, eid) =
+  checkErl s $
+  caseHasEntity eid haveEntityCase noEntityCase
+  where
+    haveEntityCase = do
+      esids <- memberOfEntitySets eid
+      bids  <- memberOfBinRels eid
+      if (null esids && null bids) then happyCase else inUseCase esids bids
+    noEntityCase =
+      failsWithNoSuchEntity eid deletion
+    happyCase =
+      deletion >>
+      noneOf [hasEntity eid,
+              elem eid `liftM` entityIds]
+    inUseCase esids bids =
+      failsWithEntityInUse eid esids bids deletion
+    deletion = deleteEntity eid
 
 prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
@@ -185,17 +199,30 @@ failsWithNoSuchEntity eid = failsWithError (NoSuchEntity eid)
 failsWithNoSuchBinRel :: (MonadErl d m) => BinRelId -> m a -> m Bool
 failsWithNoSuchBinRel bid = failsWithError (NoSuchBinRel bid)
 
+failsWithEntityInUse :: (MonadErl d m) => EntityId -> [EntitySetId] -> [BinRelId] -> m a -> m Bool
+failsWithEntityInUse eid esids bids = failsWithError (EntityInUse eid esids bids)
+
 failsWithError :: (MonadErl d m) => ErlError -> m a -> m Bool
 failsWithError expectedError op =
   (op >> return False) `catchError` (return . (expectedError ==))
 
 instance (Arbitrary d) => Arbitrary (ErlState d) where
   arbitrary = do
-    s1 <- foldr addEntitySet emptyState `liftM` arbitrary
-    -- TODO: add some entities to some entity sets with data
-    foldr addEntity s1 `liftM` arbitrary
-      where addEntitySet () = execErl createEntitySet
-            addEntity () = execErl createEntity
+    s1 <- foldr createAnEntity emptyState `liftM` arbitrary
+    s2 <- foldr createAnEntitySet s1 `liftM` arbitrary
+    s3 <- foldr createABinRel s2 `liftM` arbitrary
+    s4 <- foldr addSetContents s3 `liftM` contentsForSets s3
+    return s4
+      where createAnEntity () = execErl createEntity
+            createAnEntitySet () = execErl createEntitySet
+            createABinRel () = execErl createBinRel
+            contentsForSets s =
+              mapM contentsForSet =<< sampleEntitySetIds s
+              where contentsForSet esid =
+                      (esid,) `liftM` liftM2 zip (sampleEntityIds s) arbitrary
+            addSetContents (esid, contents) s =
+              foldr addToSet s contents
+              where addToSet (eid, val) s = execErl (addEntity eid val esid) s
 
 withEntitySetIdAndVal :: (Arbitrary d) => Gen (ErlState d, EntitySetId, d)
 withEntitySetIdAndVal = do
@@ -205,10 +232,19 @@ withEntitySetIdAndVal = do
   val   <- arbitrary
   return (s, esid, val)
 
-sampleEntitySetIds :: (ErlState d) -> Gen [EntitySetId]
-sampleEntitySetIds s =
-  if null esids then return [] else listOf (elements esids)
-    where esids = either (error . show) id $ evalErl entitySetIds s
+sampleEntityIds :: ErlState d -> Gen [EntityId]
+sampleEntityIds s = sampleOf s entityIds
+
+sampleEntitySetIds :: ErlState d -> Gen [EntitySetId]
+sampleEntitySetIds s = sampleOf s entitySetIds
+
+sampleBinRelIds :: ErlState d -> Gen [BinRelId]
+sampleBinRelIds s = sampleOf s binRelIds
+
+sampleOf :: ErlState d -> Erl d [a] -> Gen [a]
+sampleOf s op =
+  if null vals then return [] else listOf (elements vals)
+    where vals = either (error . show) id $ evalErl op s
 
 withEntity :: (Arbitrary d) => Gen (ErlState d, EntityId)
 withEntity = do

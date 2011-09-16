@@ -39,6 +39,7 @@ import qualified Erl.BinRel as BR
 data ErlError = NoSuchEntitySet EntitySetId |
                 NoSuchEntity EntityId |
                 NoSuchBinRel BinRelId |
+                EntityInUse EntityId [EntitySetId] [BinRelId] |
                 GeneralError String deriving (Eq, Ord, Show)
 
 instance Error ErlError where
@@ -49,6 +50,8 @@ class (MonadError ErlError m) => MonadErl d m | m -> d where
   deleteEntity :: EntityId -> m ()
   hasEntity    :: EntityId -> m Bool
   entityIds    :: m [EntityId]
+  memberOfEntitySets :: EntityId -> m [EntitySetId]
+  memberOfBinRels    :: EntityId -> m [BinRelId]
   createEntitySet :: m EntitySetId
   deleteEntitySet :: EntitySetId -> m ()
   lookupEntitySet :: EntitySetId -> m (Maybe ES.EntitySet)
@@ -106,9 +109,11 @@ execErl erl state = runIdentity $ execErlT (runErl erl) state
 
 instance (Monad m) => MonadErl d (ErlT d m) where
   createEntity = modify' esCreateEntity
-  deleteEntity eid = modify (esDeleteEntity eid)
+  deleteEntity eid = modify''' (esDeleteEntity eid)
   hasEntity eid = esHasEntity eid `liftM` get
   entityIds = esEntityIds `liftM` get
+  memberOfEntitySets eid = esMemberOfEntitySets eid `liftM` get
+  memberOfBinRels eid = esMemberOfBinRels eid `liftM` get
   createEntitySet = modify' esCreateEntitySet
   deleteEntitySet esid = modify (esDeleteEntitySet esid)
   lookupEntitySet esid = esLookupEntitySet esid `liftM` get
@@ -131,15 +136,28 @@ esCreateEntity s = (eid, s')
         s' = s { nextEntityId = succ eid,
                  entities = EM.insert eid erec (entities s) }
 
-esDeleteEntity :: EntityId -> ErlState d -> ErlState d
--- TODO: should fail if the entity is in a named set or relation
-esDeleteEntity eid s = s { entities = EM.delete eid (entities s) }
+esDeleteEntity :: EntityId -> ErlState d -> Either ErlError (ErlState d)
+esDeleteEntity eid s = do
+  erec <- esGetEntityRec eid s
+  let sets = inSets erec
+      rels = inBinRels erec
+  unless (DS.empty == sets && DS.empty == rels) $
+    throwError $ EntityInUse eid (DS.toList sets) (DS.toList rels)
+  return $ s { entities = EM.delete eid (entities s) }
 
 esHasEntity :: EntityId -> ErlState d -> Bool
 esHasEntity eid s = EM.member eid $ entities s
 
 esEntityIds :: ErlState d -> [EntityId]
 esEntityIds = EM.ids . entities
+
+esMemberOfEntitySets :: EntityId -> ErlState d -> [EntitySetId]
+esMemberOfEntitySets eid s =
+  maybe [] (DS.toList . inSets) $ EM.lookup eid $ entities s
+
+esMemberOfBinRels :: EntityId -> ErlState d -> [BinRelId]
+esMemberOfBinRels eid s =
+  maybe [] (DS.toList . inBinRels) $ EM.lookup eid $ entities s
 
 esCreateEntitySet :: ErlState d -> (EntitySetId, ErlState d)
 esCreateEntitySet s = (r, s')
