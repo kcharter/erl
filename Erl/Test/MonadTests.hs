@@ -16,13 +16,13 @@ runTests :: IO Bool
 runTests =
   all isSuccess `liftM`
   sequence [quickCheckResult prop_createEntity,
-            quickCheckResult prop_deleteEntity,
+            quickCheckResult $ forAll withEntityId prop_deleteEntity,
             quickCheckResult prop_createEntitySet,
-            quickCheckResult prop_deleteEntitySet,
+            quickCheckResult $ forAll withEntitySetId prop_deleteEntitySet,
             quickCheckResult prop_addEntity,
             quickCheckResult prop_removeEntity,
             quickCheckResult prop_createBinRel,
-            quickCheckResult prop_deleteBinRel,
+            quickCheckResult $ forAll withBinRelId prop_deleteBinRel,
             quickCheckResult prop_addPair,
             quickCheckResult prop_removePair]
 
@@ -59,10 +59,9 @@ prop_createEntitySet s =
     allOf [haveEntitySet esid,
            inEntitySetIds esid]
 
-prop_deleteEntitySet :: ErlState Int -> Bool
-prop_deleteEntitySet s =
+prop_deleteEntitySet :: (ErlState Int, EntitySetId) -> Bool
+prop_deleteEntitySet (s, esid) =
   checkErl s $ do
-    esid <- createEntitySet
     deleteEntitySet esid
     noneOf [haveEntitySet esid,
             inEntitySetIds esid]
@@ -110,10 +109,9 @@ prop_createBinRel s =
     allOf [haveBinRel bid,
            inBinRelIds bid]
 
-prop_deleteBinRel :: ErlState Int -> Bool
-prop_deleteBinRel s =
+prop_deleteBinRel :: (ErlState Int, BinRelId) -> Bool
+prop_deleteBinRel (s, bid) =
   checkErl s $ do
-    bid <- createBinRel
     deleteBinRel bid
     noneOf [haveBinRel bid,
             inBinRelIds bid]
@@ -217,32 +215,62 @@ instance (Arbitrary d) => Arbitrary (ErlState d) where
             createAnEntitySet () = execErl createEntitySet
             createABinRel () = execErl createBinRel
             contentsForSets s =
-              mapM contentsForSet =<< sampleEntitySetIds s
+              mapM contentsForSet =<< someEntitySetIds s
               where contentsForSet esid =
-                      (esid,) `liftM` liftM2 zip (atMost 20 $ sampleEntityIds s) arbitrary
+                      (esid,) `liftM` liftM2 zip (atMost 20 $ someEntityIds s) arbitrary
             addSetContents (esid, contents) s =
               foldr addToSet s contents
               where addToSet (eid, val) s = execErl (addEntity eid val esid) s
 
+withEntityId :: (Arbitrary d) => Gen (ErlState d, EntityId)
+withEntityId = do
+  s   <- arbitrary
+  eid <- anEntityId s
+  return (s, eid)
+
+withEntitySetId :: (Arbitrary d) => Gen (ErlState d, EntitySetId)
+withEntitySetId = do
+  s    <- arbitrary
+  esid <- anEntitySetId s
+  return (s, esid)
+
 withEntitySetIdAndVal :: (Arbitrary d) => Gen (ErlState d, EntitySetId, d)
 withEntitySetIdAndVal = do
   s     <- arbitrary
-  esids <- sampleEntitySetIds s
-  esid  <- if null esids then arbitrary else elements esids
+  esid  <- anEntitySetId s
   val   <- arbitrary
   return (s, esid, val)
 
-sampleEntityIds :: ErlState d -> Gen [EntityId]
-sampleEntityIds s = sampleOf s entityIds
+withBinRelId :: (Arbitrary d) => Gen (ErlState d, BinRelId)
+withBinRelId = do
+  s   <- arbitrary
+  bid <- aBinRelId s
+  return (s, bid)
 
-sampleEntitySetIds :: ErlState d -> Gen [EntitySetId]
-sampleEntitySetIds s = sampleOf s entitySetIds
+anEntityId :: ErlState d -> Gen EntityId
+anEntityId s = oneOf s entityIds
 
-sampleBinRelIds :: ErlState d -> Gen [BinRelId]
-sampleBinRelIds s = sampleOf s binRelIds
+anEntitySetId :: ErlState d -> Gen EntitySetId
+anEntitySetId s = oneOf s entitySetIds
 
-sampleOf :: ErlState d -> Erl d [a] -> Gen [a]
-sampleOf s op =
+aBinRelId :: ErlState d -> Gen BinRelId
+aBinRelId s = oneOf s binRelIds
+
+someEntityIds :: ErlState d -> Gen [EntityId]
+someEntityIds s = someOf s entityIds
+
+someEntitySetIds :: ErlState d -> Gen [EntitySetId]
+someEntitySetIds s = someOf s entitySetIds
+
+someBinRelIds :: ErlState d -> Gen [BinRelId]
+someBinRelIds s = someOf s binRelIds
+
+oneOf :: (Arbitrary a) => ErlState d -> Erl d [a] -> Gen a
+oneOf s op = if null xs then arbitrary else elements xs
+  where xs = either (error . show) id $ evalErl op s
+
+someOf :: ErlState d -> Erl d [a] -> Gen [a]
+someOf s op =
   if null vals then return [] else listOf (elements vals)
     where vals = either (error . show) id $ evalErl op s
 
