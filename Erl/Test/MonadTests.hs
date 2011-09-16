@@ -209,8 +209,8 @@ failsWithError expectedError op =
 instance (Arbitrary d) => Arbitrary (ErlState d) where
   arbitrary = do
     s1 <- foldr createAnEntity emptyState `liftM` arbitrary
-    s2 <- foldr createAnEntitySet s1 `liftM` arbitrary
-    s3 <- foldr createABinRel s2 `liftM` arbitrary
+    s2 <- foldr createAnEntitySet s1 `liftM` atMost 10 arbitrary
+    s3 <- foldr createABinRel s2 `liftM` atMost 10 arbitrary
     s4 <- foldr addSetContents s3 `liftM` contentsForSets s3
     return s4
       where createAnEntity () = execErl createEntity
@@ -219,7 +219,7 @@ instance (Arbitrary d) => Arbitrary (ErlState d) where
             contentsForSets s =
               mapM contentsForSet =<< sampleEntitySetIds s
               where contentsForSet esid =
-                      (esid,) `liftM` liftM2 zip (sampleEntityIds s) arbitrary
+                      (esid,) `liftM` liftM2 zip (atMost 20 $ sampleEntityIds s) arbitrary
             addSetContents (esid, contents) s =
               foldr addToSet s contents
               where addToSet (eid, val) s = execErl (addEntity eid val esid) s
@@ -258,3 +258,6 @@ instance Arbitrary EntitySetId where
 
 instance Arbitrary BinRelId where
   arbitrary = binRelId `liftM` arbitrary
+
+atMost :: Int -> Gen a -> Gen a
+atMost n g = sized $ \m -> if m <= n then g else resize n g
