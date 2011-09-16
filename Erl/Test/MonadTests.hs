@@ -13,16 +13,30 @@ import Erl.Test.EntityTests ()
 runTests :: IO Bool
 runTests =
   all isSuccess `liftM`
-  sequence [quickCheckResult prop_createEntitySet,
-            quickCheckResult prop_deleteEntitySet,
-            quickCheckResult prop_createEntity,
+  sequence [quickCheckResult prop_createEntity,
             quickCheckResult prop_deleteEntity,
+            quickCheckResult prop_createEntitySet,
+            quickCheckResult prop_deleteEntitySet,
             quickCheckResult prop_addEntity,
             quickCheckResult prop_removeEntity,
             quickCheckResult prop_createBinRel,
             quickCheckResult prop_deleteBinRel,
             quickCheckResult prop_addPair,
             quickCheckResult prop_removePair]
+
+prop_createEntity :: ErlState Int -> Bool
+prop_createEntity s =
+  checkErl s $ do
+    eid <- createEntity
+    allOf [hasEntity eid,
+           elem eid `liftM` entityIds]
+
+prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
+prop_deleteEntity (s, eid) = do
+  checkErl s $ do
+    deleteEntity eid
+    noneOf [hasEntity eid,
+            elem eid `liftM` entityIds]
 
 prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
@@ -45,20 +59,6 @@ haveEntitySet esid =
 
 inEntitySetIds :: (MonadErl d m) => EntitySetId -> m Bool
 inEntitySetIds esid = elem esid `liftM` entitySetIds
-
-prop_createEntity :: ErlState Int -> Bool
-prop_createEntity s =
-  checkErl s $ do
-    eid <- createEntity
-    allOf [hasEntity eid,
-           elem eid `liftM` entityIds]
-
-prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
-prop_deleteEntity (s, eid) = do
-  checkErl s $ do
-    deleteEntity eid
-    noneOf [hasEntity eid,
-            elem eid `liftM` entityIds]
 
 prop_addEntity :: (ErlState Int, EntitySetId, EntityId, Int) -> Bool
 prop_addEntity (s, esid, eid, val) =
