@@ -210,7 +210,8 @@ instance (Arbitrary d) => Arbitrary (ErlState d) where
     s2 <- foldr createAnEntitySet s1 `liftM` atMost 10 arbitrary
     s3 <- foldr createABinRel s2 `liftM` atMost 10 arbitrary
     s4 <- foldr addSetContents s3 `liftM` contentsForSets s3
-    return s4
+    s5 <- foldr addBinRelContents s4 `liftM` contentsForBinRels s4
+    return s5
       where createAnEntity () = execErl createEntity
             createAnEntitySet () = execErl createEntitySet
             createABinRel () = execErl createBinRel
@@ -221,6 +222,19 @@ instance (Arbitrary d) => Arbitrary (ErlState d) where
             addSetContents (esid, contents) s =
               foldr addToSet s contents
               where addToSet (eid, val) s = execErl (addEntity eid val esid) s
+            contentsForBinRels s =
+              mapM contentsForBinRel =<< someBinRelIds s
+              where contentsForBinRel bid = do
+                      xs <- atMost 5 $ someEntityIds s
+                      ys <- atMost 5 $ someEntityIds s
+                      pairs <- atMost 20 $ subLists [(x,y) | x <- xs, y <- ys]
+                      vals  <- arbitrary
+                      return (bid, zip pairs vals)
+            addBinRelContents (bid, contents) s =
+              foldr addToBinRel s contents
+              where addToBinRel ((eid1,eid2), val) s =
+                      execErl (addPair eid1 eid2 val bid) s
+
 
 withEntityId :: (Arbitrary d) => Gen (ErlState d, EntityId)
 withEntityId = do
@@ -270,9 +284,12 @@ oneOf s op = if null xs then arbitrary else elements xs
   where xs = either (error . show) id $ evalErl op s
 
 someOf :: ErlState d -> Erl d [a] -> Gen [a]
-someOf s op =
-  if null vals then return [] else listOf (elements vals)
-    where vals = either (error . show) id $ evalErl op s
+someOf s op = subLists vals
+  where vals = either (error . show) id $ evalErl op s
+
+subLists :: [a] -> Gen [a]
+subLists [] = return []
+subLists xs = listOf $ elements xs
 
 withEntity :: (Arbitrary d) => Gen (ErlState d, EntityId)
 withEntity = do
