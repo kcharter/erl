@@ -137,13 +137,14 @@ esCreateEntity s = (eid, s')
                  entities = EM.insert eid erec (entities s) }
 
 esDeleteEntity :: EntityId -> ErlState d -> Either ErlError (ErlState d)
-esDeleteEntity eid s = do
-  erec <- esGetEntityRec eid s
-  let sets = inSets erec
-      rels = inBinRels erec
-  unless (DS.empty == sets && DS.empty == rels) $
-    throwError $ EntityInUse eid (DS.toList sets) (DS.toList rels)
-  return $ s { entities = EM.delete eid (entities s) }
+esDeleteEntity eid s =
+  maybe (return s) doDeletion $ esLookupEntityRec eid s
+  where doDeletion erec = do
+          let sets = inSets erec
+              rels = inBinRels erec
+          unless (DS.empty == sets && DS.empty == rels) $
+            throwError $ EntityInUse eid (DS.toList sets) (DS.toList rels)
+          return $ s { entities = EM.delete eid (entities s) }
 
 esHasEntity :: EntityId -> ErlState d -> Bool
 esHasEntity eid s = EM.member eid $ entities s
@@ -267,11 +268,14 @@ esGetEntitySetRec esid s =
 
 esGetEntityRec :: EntityId -> ErlState d -> Either ErlError EntityRec
 esGetEntityRec eid s =
-  maybe (noSuchEntity eid) return $ EM.lookup eid $ entities s
+  maybe (noSuchEntity eid) return $ esLookupEntityRec eid s
 
 esGetBinRelRec :: BinRelId -> ErlState d -> Either ErlError (BinRelRec d)
 esGetBinRelRec bid s =
   maybe (noSuchBinRel bid) return $ DM.lookup bid $ binRels s
+
+esLookupEntityRec :: EntityId -> ErlState d -> Maybe EntityRec
+esLookupEntityRec eid s = EM.lookup eid $ entities s
 
 noSuchSet :: (MonadError ErlError m) => EntitySetId -> m a
 noSuchSet esid = throwError $ NoSuchEntitySet esid

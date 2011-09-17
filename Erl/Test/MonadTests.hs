@@ -35,22 +35,17 @@ prop_createEntity s =
 
 prop_deleteEntity :: (ErlState Int, EntityId) -> Bool
 prop_deleteEntity (s, eid) =
-  checkErl s $
-  caseHasEntity eid haveEntityCase noEntityCase
-  where
-    haveEntityCase = do
-      esids <- memberOfEntitySets eid
-      bids  <- memberOfBinRels eid
-      if (null esids && null bids) then happyCase else inUseCase esids bids
-    noEntityCase =
-      failsWithNoSuchEntity eid deletion
-    happyCase =
-      deletion >>
-      noneOf [hasEntity eid,
-              elem eid `liftM` entityIds]
-    inUseCase esids bids =
-      failsWithEntityInUse eid esids bids deletion
-    deletion = deleteEntity eid
+  checkErl s $ do
+    esids <- memberOfEntitySets eid
+    bids  <- memberOfBinRels eid
+    if (null esids && null bids) then happyCase else inUseCase esids bids
+    where happyCase =
+            deletion >>
+            noneOf [hasEntity eid,
+                    elem eid `liftM` entityIds]
+          inUseCase esids bids =
+            failsWithEntityInUse eid esids bids deletion
+          deletion = deleteEntity eid
 
 prop_createEntitySet :: ErlState Int -> Bool
 prop_createEntitySet s =
