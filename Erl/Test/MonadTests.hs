@@ -83,7 +83,8 @@ prop_addEntity (s, esid, eid, val) =
             failsWithNoSuchEntitySet esid addition
           happyCase =
             addition >>
-            (maybe False (val ==) `liftM` lookupEntity eid esid)
+            allOf [(maybe False (val ==) `liftM` lookupEntity eid esid),
+                   isAssociatedWithEntity esid eid]
           noEntityCase =
             failsWithNoSuchEntity eid addition
           addition = addEntity eid val esid
@@ -97,10 +98,16 @@ prop_removeEntity (s, esid, eid) =
             failsWithNoSuchEntitySet esid removal
           happyCase =
             removal >>
-            (maybe True (const False) `liftM` lookupEntity eid esid)
+            allOf [(maybe True (const False) `liftM` lookupEntity eid esid),
+                   not `liftM` isAssociatedWithEntity esid eid]
           noEntityCase =
             failsWithNoSuchEntity eid removal
           removal = removeEntity eid esid
+
+isAssociatedWithEntity :: (MonadErl d m) => EntitySetId -> EntityId -> m Bool
+isAssociatedWithEntity esid eid =
+  caseHasEntity eid amongEnclosingSets (return False)
+    where amongEnclosingSets = elem esid `liftM` memberOfEntitySets eid
 
 prop_createBinRel :: ErlState Int -> Bool
 prop_createBinRel s =
