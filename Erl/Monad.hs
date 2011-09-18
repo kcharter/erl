@@ -169,7 +169,16 @@ esCreateEntitySet s = (r, s')
                              entityAttributes = EM.empty }
 
 esDeleteEntitySet :: EntitySetId -> ErlState d -> ErlState d
-esDeleteEntitySet esid s = s { entitySets = DM.delete esid (entitySets s) }
+esDeleteEntitySet esid s =
+  maybe s doDeletion $ esLookupEntitySetRec esid s
+    where doDeletion esrec = s { entities = entities',
+                                 entitySets = entitySets'  }
+            where entities' = foldr dropMembership (entities s) members
+                  members = ES.toList $ entitySet esrec
+                  dropMembership eid entities =
+                    EM.adjust removeSet eid entities
+                  removeSet erec = erec { inSets = DS.delete esid (inSets erec) }
+                  entitySets' = DM.delete esid (entitySets s)
 
 esLookupEntitySet :: EntitySetId -> ErlState d -> Maybe ES.EntitySet
 esLookupEntitySet esid s = fmap entitySet $ DM.lookup esid (entitySets s)
@@ -276,6 +285,9 @@ esGetBinRelRec bid s =
 
 esLookupEntityRec :: EntityId -> ErlState d -> Maybe EntityRec
 esLookupEntityRec eid s = EM.lookup eid $ entities s
+
+esLookupEntitySetRec :: EntitySetId -> ErlState d -> Maybe (EntitySetRec d)
+esLookupEntitySetRec esid s = DM.lookup esid $ entitySets s
 
 noSuchSet :: (MonadError ErlError m) => EntitySetId -> m a
 noSuchSet esid = throwError $ NoSuchEntitySet esid

@@ -59,7 +59,8 @@ prop_deleteEntitySet (s, esid) =
   checkErl s $ do
     deleteEntitySet esid
     noneOf [haveEntitySet esid,
-            inEntitySetIds esid]
+            inEntitySetIds esid,
+            isAssociatedWithSomeEntity esid]
 
 haveEntitySet :: (MonadErl d m) => EntitySetId -> m Bool
 haveEntitySet esid =
@@ -67,6 +68,10 @@ haveEntitySet esid =
 
 inEntitySetIds :: (MonadErl d m) => EntitySetId -> m Bool
 inEntitySetIds esid = elem esid `liftM` entitySetIds
+
+isAssociatedWithSomeEntity :: (MonadErl d m) => EntitySetId -> m Bool
+isAssociatedWithSomeEntity esid =
+  any (elem esid) `liftM` (mapM memberOfEntitySets =<< entityIds)
 
 prop_addEntity :: (ErlState Int, EntitySetId, EntityId, Int) -> Bool
 prop_addEntity (s, esid, eid, val) =
