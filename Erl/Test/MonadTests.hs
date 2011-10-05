@@ -7,6 +7,7 @@ import Control.Monad.Error (catchError)
 import Test.QuickCheck
 import Test.QuickCheck.Test (isSuccess)
 
+import qualified Erl.BinRel as BR
 import Erl.Entity (EntityId)
 import Erl.Monad
 
@@ -119,9 +120,13 @@ prop_createBinRel s =
 prop_deleteBinRel :: (ErlState Int, BinRelId) -> Bool
 prop_deleteBinRel (s, bid) =
   checkErl s $ do
+    pairs <- maybe [] BR.toList `liftM` lookupBinRel bid
     deleteBinRel bid
     noneOf [haveBinRel bid,
-            inBinRelIds bid]
+            inBinRelIds bid,
+            isAssociatedWithSomePair pairs]
+      where isAssociatedWithSomePair pairs =
+              or `liftM` mapM (uncurry $ isAssociatedWithPair bid) pairs
 
 haveBinRel :: (MonadErl d m) => BinRelId -> m Bool
 haveBinRel bid =
@@ -129,6 +134,12 @@ haveBinRel bid =
 
 inBinRelIds :: (MonadErl d m) => BinRelId -> m Bool
 inBinRelIds bid = elem bid `liftM` binRelIds
+
+isAssociatedWithPair :: (MonadErl d m) => BinRelId -> EntityId -> EntityId -> m Bool
+isAssociatedWithPair bid eid1 eid2 = do
+  rels1 <- memberOfBinRels eid1
+  rels2 <- memberOfBinRels eid2
+  return (elem bid rels1 && elem bid rels2)
 
 prop_addPair :: (ErlState Int, BinRelId, EntityId, EntityId, Int) -> Bool
 prop_addPair (s, bid, eid1, eid2, val) =

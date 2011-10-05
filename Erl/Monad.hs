@@ -219,7 +219,16 @@ esCreateBinRel s = (bid, s')
                           pairAttributes = EM.empty }
 
 esDeleteBinRel :: BinRelId -> ErlState d -> ErlState d
-esDeleteBinRel bid s = s { binRels = DM.delete bid (binRels s) }
+esDeleteBinRel bid s =
+  maybe s doDeletion $ esLookupBinRel bid s
+  where doDeletion br = s' { binRels = DM.delete bid (binRels s') }
+          where s' = s { entities = entities' }
+                entities' = foldr adjustParticipation (entities s) participants
+                adjustParticipation eid = EM.alter removeBid eid
+                removeBid = fmap $ \erec ->
+                  erec { inBinRels = DS.delete bid (inBinRels erec) }
+                participants =
+                  ES.toList $ ES.union (BR.leftSet br) (BR.rightSet br)
 
 esLookupBinRel :: BinRelId -> ErlState d -> Maybe BR.BinRel
 esLookupBinRel bid = fmap binRel . DM.lookup bid . binRels
