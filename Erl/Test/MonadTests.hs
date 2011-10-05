@@ -153,7 +153,8 @@ prop_addPair (s, bid, eid1, eid2, val) =
             caseHasEntity eid2 happyCase noEntity2
           happyCase =
             addition >>
-            maybe False (val ==) `liftM` lookupPair eid1 eid2 bid
+            allOf [hasPair bid eid1 eid2,
+                   isAssociatedWithPair bid eid1 eid2]
           noEntity1 =
             failsWithNoSuchEntity eid1 addition
           noEntity2 =
@@ -172,12 +173,17 @@ prop_removePair (s, eid1, eid2, bid) =
             caseHasEntity eid2 happyCase noEntity2
           happyCase =
             removal >>
-            maybe True (const False) `liftM` lookupPair eid1 eid2 bid
+            noneOf [hasPair bid eid1 eid2,
+                    isAssociatedWithPair bid eid1 eid2]
           noEntity1 =
             failsWithNoSuchEntity eid1 removal
           noEntity2 =
             failsWithNoSuchEntity eid2 removal
           removal = removePair eid1 eid2 bid
+
+hasPair :: (MonadErl d m) => BinRelId -> EntityId -> EntityId -> m Bool
+hasPair bid eid1 eid2 =
+  maybe False (const True) `liftM` lookupPair eid1 eid2 bid
 
 caseHasSet :: (MonadErl d m) => EntitySetId -> m a -> m a -> m a
 caseHasSet esid yesCase noCase =
